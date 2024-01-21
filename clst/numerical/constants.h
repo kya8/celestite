@@ -1,0 +1,23 @@
+#ifndef CLST_NUMERICAL_CONSTANTS_H
+#define CLST_NUMERICAL_CONSTANTS_H
+
+namespace clst::numerical::constants {
+
+constexpr double sqrt_2  = 1.414213562373095048801688724209698078;
+constexpr double sqrt_3  = 1.732050807568877293527446341505872366;
+
+constexpr double e       = 2.718281828459045235360287471352662497;
+constexpr double sqrt_e  = 1.648721270700128146848650787814163571;
+constexpr double ln_2    = 0.693147180559945309417232121458176568;
+
+constexpr double pi      = 3.141592653589793238462643383279502884;
+constexpr double sqrt_pi = 1.772453850905516027298167483341145182;
+
+constexpr double euler   = 0.577215664901532860606512090082402431;
+
+constexpr double rad2deg = 57.29577951308232087679815481410517033;
+constexpr double deg2rad = 1 / rad2deg;
+
+}
+
+#endif /* CLST_NUMERICAL_CONSTANTS_H */
