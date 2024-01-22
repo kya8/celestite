@@ -35,16 +35,16 @@ public:
     template<size_type I>
     constexpr auto& at() noexcept
     {
-        return meta::utils::as_mutable(std::as_const(*this).at<I>());
+        return meta::utils::as_mutable(std::as_const(*this).template at<I>());
     }
-    constexpr const auto& at(size_type i) const noexcept
+    constexpr const auto& at(size_type i) const
     {
         if(i < N+1)
             return data_[i];
         else
             throw std::out_of_range("fixed_string subscript out of bound");
     }
-    constexpr auto& at(size_type i) noexcept
+    constexpr auto& at(size_type i)
     {
         return meta::utils::as_mutable(std::as_const(*this).at(i));
     }
@@ -52,14 +52,6 @@ public:
     constexpr const auto& operator[](size_type i) const noexcept { return data_[i]; }
     constexpr auto&       operator[](size_type i) noexcept       { return data_[i]; }
 
-    static constexpr auto from_ptr(const CharT* p)
-    {
-        type ret{};
-        for(size_type i = 0; i < N; ++i) {
-            ret[i] = p[i];
-        }
-        return ret;
-    }
 
 private:
     CharT data_[N+1]{0};
@@ -69,7 +61,7 @@ template<typename CharT, auto N>
 basic_fixed_string(const CharT (&)[N]) -> basic_fixed_string<CharT, N-1>;
 
 template <typename CharT, auto N1, auto N2>
-constexpr auto operator+(const basic_fixed_string<CharT, N1>& s1, const basic_fixed_string<CharT, N2>& s2)
+constexpr auto operator+(const basic_fixed_string<CharT, N1>& s1, const basic_fixed_string<CharT, N2>& s2) noexcept
 {
     basic_fixed_string<CharT, N1 + N2> result{};
     for (decltype(N1) i = 0; i < N1; ++i) {
@@ -81,15 +73,42 @@ constexpr auto operator+(const basic_fixed_string<CharT, N1>& s1, const basic_fi
     return result;
 }
 
+template <typename CharT, auto N1, auto N2>
+constexpr bool operator==(const basic_fixed_string<CharT, N1>& s1, const basic_fixed_string<CharT, N2>& s2) noexcept
+{
+    if constexpr (N1 != N2) {
+        return false;
+    }
+    else {
+        for(decltype(N1) i=0; i<N1; ++i) {
+            if (s1[i] != s2[i])
+                return false;
+        }
+        return true;
+    }
+}
+
 template<std::size_t N>
 using fixed_string = basic_fixed_string<char, N>;
+// alias template deduction isn't available pre C++20...
+
+// Helper function: make fixed string
+template<typename CharT, auto N>
+constexpr auto mkfs(const CharT (&s)[N]) noexcept
+{
+    basic_fixed_string<CharT, N - 1> ret{};
+    for(decltype(N) i = 0; i < N; ++i) {
+       ret[i] = s[i];
+    }
+    return ret;
+}
 
 // Get a constexpr fixed_string representing an unsigned integer.
 template <unsigned long long Num>
-constexpr auto digits_string()
+constexpr auto digits_string() noexcept
 {
     if constexpr (Num < 10)
-        return fixed_string({Num + '0', 0});
+        return fixed_string<1>({Num + '0', 0});
     else
         return digits_string<Num / 10>() + digits_string<Num % 10>();
 }
@@ -97,7 +116,7 @@ constexpr auto digits_string()
 //TODO: C++20 string UDL operator template
 //TODO: More methods
 
-} /* namespace clst */
+} /* namespace strings */
 
 
 #endif /* CLST_STRINGS_FIXED_STRING_H */

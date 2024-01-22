@@ -2,6 +2,8 @@
 #define CLST_META_TRAITS_H
 
 #include <type_traits>
+#include <utility>
+#include <cstddef>
 
 namespace clst::meta::traits {
 
@@ -59,6 +61,69 @@ struct append_unique_types<TMPL<Ts...>, U, Us...> : std::conditional_t<(std::dis
                                                                         append_unique_types<TMPL<Ts...>, Us...>,
                                                                         append_unique_types<TMPL<Ts..., U>, Us...>>
 {};
+
+
+template<std::size_t I, typename T>
+struct indexed_type {
+    static constexpr auto index = I;
+    using type = T;
+};
+
+template<std::size_t I, auto Val>
+struct indexed_value {
+    static constexpr auto index = I;
+    static constexpr auto value = Val;
+    using value_type = decltype(Val);
+};
+
+namespace details {
+
+// parameter pack indexing
+// implemented with multiple inheritance
+
+template<typename, typename...>
+struct pack_index_impl;
+template<std::size_t ...Is, typename ...Ts>
+struct pack_index_impl<std::index_sequence<Is...>, Ts...> : indexed_type<Is, Ts>... {};
+
+template<typename ...Ts>
+using pack_index = pack_index_impl<std::index_sequence_for<Ts...>, Ts...>;
+
+template<std::size_t N, typename ...Ts>
+struct get_pack_index_type {
+private:
+    template<typename T>
+    static indexed_type<N, T> test(indexed_type<N, T>);
+public:
+    using type = typename decltype(test(pack_index<Ts...>{}))::type;
+};
+
+
+template<typename, auto...>
+struct pack_index_impl_val;
+template<std::size_t ...Is, auto ...Vs>
+struct pack_index_impl_val<std::index_sequence<Is...>, Vs...> : indexed_value<Is, Vs>... {};
+
+template<auto ...Vs>
+using pack_index_vals = pack_index_impl_val<std::make_index_sequence<sizeof...(Vs)>, Vs...>;
+
+template<std::size_t N, auto ...Vs>
+struct get_pack_index_val {
+private:
+    template<auto Val>
+    static indexed_value<N, Val> test(indexed_value<N, Val>);
+public:
+    static constexpr auto value = decltype(test(pack_index_vals<Vs...>{}))::value;
+};
+
+} /* namespace details */
+
+template<std::size_t N, typename ...Ts>
+using pack_index_type = typename details::get_pack_index_type<N, Ts...>::type;
+
+template<std::size_t N, auto ...Vs>
+constexpr auto pack_index_value = details::get_pack_index_val<N, Vs...>::value;
+
 
 } /* namespace traits */
 

@@ -18,13 +18,6 @@ constexpr bool eq_all(const T& x, const Ts&...args)
 }
 
 
-template<std::size_t I, typename T>
-struct indexed_type {
-    static constexpr auto index = I;
-    using type = T;
-};
-
-
 template<typename T>
 constexpr auto& as_mutable(T& t) noexcept // T can be const or non-const
 {
