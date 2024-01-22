@@ -1,7 +1,7 @@
 #include "clst/version.h"
 
-const char* GIT_DESC    = "@GIT_DESC@";
-const char* GIT_BRANCH  = "@GIT_BRANCH@";
-const char* COMMIT_DATE = "@COMMIT_DATE@";
-const char* TARGET_OS   = "@CMAKE_SYSTEM_NAME@";
-const char* TARGET_ARCH = "@CMAKE_SYSTEM_PROCESSOR@";
+const char* CELESTITE_GIT_DESC    = "@GIT_DESC@";
+const char* CELESTITE_GIT_BRANCH  = "@GIT_BRANCH@";
+const char* CELESTITE_COMMIT_DATE = "@COMMIT_DATE@";
+const char* CELESTITE_TARGET_OS   = "@CMAKE_SYSTEM_NAME@";
+const char* CELESTITE_TARGET_ARCH = "@CMAKE_SYSTEM_PROCESSOR@";
