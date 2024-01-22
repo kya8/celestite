@@ -9,11 +9,11 @@ namespace clst::meta {
 template<typename>
 struct for_ints;
 
-template<typename IT, IT ...Is>
-struct for_ints<std::integer_sequence<IT, Is...>> {  // maybe inherit from homogeneous_nontype_holder?
+template<typename IntT, IntT ...Is>
+struct for_ints<std::integer_sequence<IntT, Is...>> {  // maybe inherit from homogeneous_nontype_holder?
 
     static void apply(F&& f) {
-        (void(f(std::integral_constant<IT, Is>{})), ...);
+        (void(f(std::integral_constant<IntT, Is>{})), ...);
     }
 
 };
@@ -23,7 +23,7 @@ using for_seq = for_ints<std::make_integer_sequence<decltype(N), N>>;
 
 
 // Another integer_sequence implementation
-template<typename IT, IT ...>
+template<typename IntT, IntT ...>
 struct int_seq {};
 
 namespace details {
@@ -31,28 +31,28 @@ namespace details {
 template<typename, typename>
 struct concat_ints;
 
-template<typename IT, IT ...Is1, IT ...Is2>
-struct concat_ints<int_seq<IT, Is1...>, int_seq<IT, Is2...>> {
-    using type = int_seq<IT, Is1..., (sizeof...(Is1) + Is2)...>;
+template<typename IntT, IntT ...Is1, IntT ...Is2>
+struct concat_ints<int_seq<IntT, Is1...>, int_seq<IntT, Is2...>> {
+    using type = int_seq<IntT, Is1..., (sizeof...(Is1) + Is2)...>;
 };
 
-template<typename IT, IT N, typename = void>
-struct make_ints : concat_ints<typename make_ints<IT, N/2>::type, typename make_ints<IT, N - N/2>::type> {};
+template<typename IntT, IntT N, typename = void>
+struct make_ints : concat_ints<typename make_ints<IntT, N/2>::type, typename make_ints<IntT, N - N/2>::type> {};
 
-template<typename IT, IT N>
-struct make_ints<IT, N, std::enable_if_t<N==0>> {
-    using type = int_seq<IT>;
+template<typename IntT, IntT N>
+struct make_ints<IntT, N, std::enable_if_t<N==0>> {
+    using type = int_seq<IntT>;
 };
 
-template<typename IT, IT N>
-struct make_ints<IT, N, std::enable_if_t<N==1>> {
-    using type = int_seq<IT, 0>;
+template<typename IntT, IntT N>
+struct make_ints<IntT, N, std::enable_if_t<N==1>> {
+    using type = int_seq<IntT, 0>;
 };
 
 } /* details ns */
 
-template<typename IT, IT N>
-using make_int_seq = typename make_ints<IT, N>::type;
+template<typename IntT, IntT N>
+using make_int_seq = typename make_ints<IntT, N>::type;
 
 }
 

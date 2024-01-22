@@ -17,7 +17,7 @@ ___WARNING___: This is currently a toy project intended for my personal use only
 
 # To-do
 * `clst::log`: Simple library for logging.
-* `clst::num_cast`: Numerical type cast that throws error if the arithmetic value cannot be preserved.
+* `clst::num_cast`: Numerical type cast that throws error if the arithmetic range cannot be preserved.
 * `clst::container::inline_vector`: Small-size-optimized vector.
 * `clst::argparse`: Command-line argument parsing.
 * `clst::numerical`, `clst::algorithm`...

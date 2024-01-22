@@ -6,18 +6,6 @@
 namespace clst::meta::traits {
 
 template<typename T, typename ...Ts>
-constexpr bool eq_one(const T& x, const Ts&...args)
-{
-    return ((x == args)||...);
-}
-
-template<typename T, typename ...Ts>
-constexpr bool eq_all(const T& x, const Ts&...args)
-{
-    return ((x == args)&&...);
-}
-
-template<typename T, typename ...Ts>
 constexpr bool is_one_of_v = std::disjunction_v<std::is_same<T, Ts>...>;
 
 template<typename T, typename ...Ts>
@@ -27,6 +15,9 @@ template<typename...>
 constexpr bool always_false_v = false;
 template<typename...>
 constexpr bool always_true_v = true;
+
+template<typename T, typename...>
+using always_T = T;
 
 
 template <typename T, template <typename...> typename Template>
@@ -69,6 +60,6 @@ struct append_unique_types<TMPL<Ts...>, U, Us...> : std::conditional_t<(std::dis
                                                                         append_unique_types<TMPL<Ts..., U>, Us...>>
 {};
 
-}
+} /* namespace traits */
 
 #endif /* CLST_META_TRAITS_H */
