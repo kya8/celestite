@@ -1,11 +1,30 @@
 #ifndef CLST_STRINGS_FIXED_STRING_H
 #define CLST_STRINGS_FIXED_STRING_H
 
-#include <cstddef>
-#include <stdexcept>
-#include "clst/meta/utils.h"
+#include <cstddef>           // std::size_t
+#include <stdexcept>         // std::out_of_range
+#include "clst/meta/utils.h" // as_mutable
+#include <utility>           // std::as_const
+
+// Note:
+// Compile-time typing based on the CONTENTS of string data is restricted.
+// We could use char[]/char* as template parameters, however that requires static storage (and no string literals.)
 
 namespace clst::strings {
+
+namespace details {
+
+template<typename CharT>
+constexpr auto cstr_size(const CharT* s) {
+    std::size_t i = 0;
+    while (*s != 0) {
+        ++i;
+        ++s;
+    }
+    return i;
+}
+
+} // namespace details
 
 template<typename CharT, std::size_t N> // We can change this to "auto N" if we want...
 class basic_fixed_string {
@@ -23,8 +42,8 @@ public:
         }
     }
 
-    constexpr auto data() const noexcept { return &data_[0]; }
-    constexpr auto data() noexcept       { return &data_[0]; }
+    constexpr auto str() const noexcept { return &data_[0]; }
+    constexpr auto str() noexcept       { return &data_[0]; }
 
     template<size_type I>
     constexpr const auto& at() const noexcept
@@ -52,6 +71,43 @@ public:
     constexpr const auto& operator[](size_type i) const noexcept { return data_[i]; }
     constexpr auto&       operator[](size_type i) noexcept       { return data_[i]; }
 
+    // compile-time slicing
+    template<size_type Begin, size_type End>
+    constexpr auto slice() const noexcept {
+        static_assert(End < N+1 && Begin >= 0, "Slicing out of bound");
+        static_assert(End >= Begin, "Invalid slicing index");
+
+        basic_fixed_string<CharT, End - Begin> ret{};
+        for(size_type i = 0; i < End-Begin; ++i) {
+            ret[i] = data_[Begin + i];
+        }
+        return ret;
+    }
+
+    // A fixed_string is ill-formed if it contains NUL bytes other than at data_[N].
+
+    // runtime slicing, that returns a (ill-formed) fixed_string with same size.
+    // No checks performed!
+    constexpr auto slice(size_type begin, size_type end) const noexcept {
+        basic_fixed_string<CharT, N> ret{};
+        for(size_type i = 0; i < end-begin; ++i) {
+            ret[i] = data_[begin + i];
+        }
+        return ret;
+    }
+
+    // Get actual length of the nul-terminated string, in contrast to the storage size.
+    // Returns N+1 if storage is not nul-terminated.
+    constexpr auto actual_size() const noexcept {
+        size_type i = 0;
+        while (i < N+1 && data_[i] != 0) {
+            ++i;
+        }
+        return i;
+    }
+
+    constexpr const auto& data() const noexcept { return data_; }
+    constexpr auto&       data() noexcept       { return data_; }
 
 private:
     CharT data_[N+1]{0};
@@ -93,7 +149,7 @@ using fixed_string = basic_fixed_string<char, N>;
 // alias template deduction isn't available pre C++20...
 
 // Helper function: make fixed string
-template<typename CharT, auto N>
+template<typename CharT, std::size_t N> // "auto N" triggers intellisense errors...
 constexpr auto mkfs(const CharT (&s)[N]) noexcept
 {
     basic_fixed_string<CharT, N - 1> ret{};
@@ -116,7 +172,7 @@ constexpr auto digits_string() noexcept
 //TODO: C++20 string UDL operator template
 //TODO: More methods
 
-} /* namespace strings */
+} /* namespace clst::strings */
 
 
 #endif /* CLST_STRINGS_FIXED_STRING_H */

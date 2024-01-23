@@ -23,7 +23,7 @@ set(CLST_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/clst/)
 set(ALL_HEADER_FILES
 meta/sequence.h meta/traits.h meta/type_holder.h meta/utils.h
 numerical/constants.h
-strings/fixed_string.h strings/typed_string.h
+strings/fixed_string.h strings/typed_string.h strings/type_name.h
 util/types/ints.h util/timer.h
 )
 list(TRANSFORM ALL_HEADER_FILES PREPEND ${CLST_ROOT})
@@ -62,4 +62,4 @@ ${ALL_HEADER_FILES}
 ${ALL_SOURCE_FILES}
 )
 
-target_include_directories(celestite PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(celestite PUBLIC .)

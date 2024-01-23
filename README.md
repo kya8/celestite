@@ -13,7 +13,7 @@ ___WARNING___: This is currently a toy project intended for my personal use only
 * `clst::thread_pool`: Simple thread pool implementation.
 * `clst::meta`: Meta-programming facilities.
 * `clst::binary_stream`: Raw binary streams for endianness-aware I/O.
-* Miscellaneous utilities, found under `clst::util`, `clst::types`, ...
+* Miscellaneous utilities.
 
 # To-do
 * `clst::log`: Simple library for logging.
