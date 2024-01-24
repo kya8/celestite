@@ -2,7 +2,7 @@
 #define CLST_CONCURRENCY_SIMPLE_THREAD_POOL_H
 
 #include <vector>
-#include <queue>
+#include <deque>
 #include <memory>
 #include <thread>
 #include <mutex>
@@ -16,8 +16,8 @@ namespace clst::concurrency {
 
 class simple_thread_pool {
 public:
-    simple_thread_pool(std::size_t nb_threads);
-    ~simple_thread_pool();
+    simple_thread_pool(std::size_t nb_threads) noexcept;
+    ~simple_thread_pool() noexcept;
 
     template<typename F, typename... Args>
     auto enqueue(F&& f, Args&&... args);
@@ -25,11 +25,11 @@ public:
     template<typename F, typename... Args>
     void enqueue_without_future(F&& f, Args&&... args);
 
-    void wait_all();
-    void stop_all();
+    void wait_all() noexcept;
+    void stop_all() noexcept;
 private:
     std::vector<std::thread> workers;
-    std::queue<std::function<void()>> tasks;
+    std::deque<std::function<void()>> tasks;
 
     std::mutex mutex;
     std::condition_variable cond;
@@ -40,7 +40,7 @@ private:
 };
 
 
-inline simple_thread_pool::simple_thread_pool(std::size_t threads)
+inline simple_thread_pool::simple_thread_pool(std::size_t threads) noexcept
 {
     for(std::size_t i = 0;i<threads;++i)
         workers.emplace_back(
@@ -57,7 +57,7 @@ inline simple_thread_pool::simple_thread_pool(std::size_t threads)
                         if(this->stop && this->tasks.empty())
                             return;
                         task = std::move(this->tasks.front());
-                        this->tasks.pop();
+                        this->tasks.pop_front();
                         nb_working += 1;
                     }
 
@@ -100,7 +100,7 @@ auto simple_thread_pool::enqueue(F&& f, Args&&... args)
         if(stop) {
             throw std::runtime_error("Enqueuing on stopped thread pool");
         }
-        tasks.emplace([task = std::move(task)]()->void { (*task)(); });
+        tasks.emplace_back([task = std::move(task)]()->void { (*task)(); });
     }
     cond.notify_one();
     return future;
@@ -115,24 +115,24 @@ void simple_thread_pool::enqueue_without_future(F&& f, Args&&... args)
             throw std::runtime_error("Enqueuing on stopped thread pool");
         }
         if constexpr (sizeof...(Args) == 0) {
-            tasks.emplace(std::forward<F>(f));
+            tasks.emplace_back(std::forward<F>(f));
         }
         else {
-            tasks.emplace(std::bind(std::forward<F>(f), std::forward<Args>(args)...));
+            tasks.emplace_back(std::bind(std::forward<F>(f), std::forward<Args>(args)...));
         }
     }
     cond.notify_one();
 }
 
 
-inline simple_thread_pool::~simple_thread_pool()
+inline simple_thread_pool::~simple_thread_pool() noexcept
 {
     stop_all();
 }
 
 // "graceful" stop
 // This'll prevent adding new task, finish the remaining task queue, and join all worker threads.
-inline void simple_thread_pool::stop_all()
+inline void simple_thread_pool::stop_all() noexcept
 {
     {
         std::scoped_lock lk(mutex);
@@ -145,7 +145,7 @@ inline void simple_thread_pool::stop_all()
 }
 
 // Returns when there is no thread working, and no task queued.
-inline void simple_thread_pool::wait_all()
+inline void simple_thread_pool::wait_all() noexcept
 {
     std::unique_lock lk(mutex);
     cond_pool.wait(lk, [&] { return nb_working == 0 && tasks.empty(); });
