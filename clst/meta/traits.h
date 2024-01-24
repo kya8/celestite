@@ -113,7 +113,10 @@ private:
     template<auto Val>
     static indexed_value<N, Val> test(indexed_value<N, Val>);
 public:
-    static constexpr auto value = decltype(test(pack_index_vals<Vs...>{}))::value;
+    using info = decltype(test(pack_index_vals<Vs...>{}));
+    using type = typename info::value_type;    // this is required, in order to preserve the original type.
+    static constexpr auto value = info::value; // this value always has const type!
+
 };
 
 } /* namespace details */
@@ -122,7 +125,11 @@ template<std::size_t N, typename ...Ts>
 using pack_index_type = typename details::get_pack_index_type<N, Ts...>::type;
 
 template<std::size_t N, auto ...Vs>
+using pack_index_value_info = typename details::get_pack_index_val<N, Vs...>::info;
+template<std::size_t N, auto ...Vs>
 constexpr auto pack_index_value = details::get_pack_index_val<N, Vs...>::value;
+template<std::size_t N, auto ...Vs>
+using pack_index_value_type = typename details::get_pack_index_val<N, Vs...>::type;
 
 
 } /* namespace traits */

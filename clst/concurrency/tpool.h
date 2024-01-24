@@ -1,5 +1,5 @@
-#ifndef CLST_CONCURRENCY_TP_H
-#define CLST_CONCURRENCY_TP_H
+#ifndef CLST_CONCURRENCY_TPOOL_H
+#define CLST_CONCURRENCY_TPOOL_H
 
 #include <future>
 #include <memory>
@@ -38,4 +38,4 @@ private:
 
 } // namespace clst::concurrency
 
-#endif /* CLST_CONCURRENCY_TP_H */
+#endif /* CLST_CONCURRENCY_TPOOL_H */

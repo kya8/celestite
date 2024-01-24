@@ -10,7 +10,7 @@ template<typename>
 struct for_ints;
 
 template<typename IntT, IntT ...Is>
-struct for_ints<std::integer_sequence<IntT, Is...>> {  // maybe inherit from homogeneous_nontype_holder?
+struct for_ints<std::integer_sequence<IntT, Is...>> {  // maybe inherit from uni_list?
 
     template<typename F>
     static constexpr void apply(F&& f) {
