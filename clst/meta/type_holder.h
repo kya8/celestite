@@ -6,6 +6,7 @@
 namespace clst::meta {
 
 //TODO: subscript accessor
+//TODO: modifiers, transforms on the list
 
 template <auto Val>
 struct val_holder {
@@ -22,7 +23,7 @@ struct type_holder {
     static constexpr auto size = sizeof...(Ts);
 
     template<typename F>
-    static void apply(F&& f) {
+    static constexpr void apply(F&& f) {
         (void(f.template operator()<Ts>()), ...);
     }
 };
@@ -32,7 +33,7 @@ struct heterogeneous_nontype_holder {
     static constexpr auto size = sizeof...(Vs);
 
     template<typename F>
-    static void apply(F&& f) {
+    static constexpr void apply(F&& f) {
         (void(f.template operator()<Vs>()), ...); // template<auto v> operator();
     }
 };
@@ -54,12 +55,12 @@ struct homogeneous_nontype_holder {
     //static constexpr T data_[] {Vs...};
 
     template<typename F>
-    static void apply(F&& f) {
+    static constexpr void apply(F&& f) {
         (void(f.template operator()<Vs>()), ...);
     }
 
     template<typename F>
-    static void apply2(F&& f) {
+    static constexpr void apply2(F&& f) {
         (void(f(val_holder<Vs>{})), ...);  // Vs can be catched by a generic lambda
     }
 

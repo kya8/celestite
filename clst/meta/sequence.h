@@ -12,7 +12,8 @@ struct for_ints;
 template<typename IntT, IntT ...Is>
 struct for_ints<std::integer_sequence<IntT, Is...>> {  // maybe inherit from homogeneous_nontype_holder?
 
-    static void apply(F&& f) {
+    template<typename F>
+    static constexpr void apply(F&& f) {
         (void(f(std::integral_constant<IntT, Is>{})), ...);
     }
 
@@ -52,8 +53,21 @@ struct make_ints<IntT, N, std::enable_if_t<N==1>> {
 } /* details ns */
 
 template<typename IntT, IntT N>
-using make_int_seq = typename make_ints<IntT, N>::type;
+using make_int_seq = typename details::make_ints<IntT, N>::type;
 
 }
 
 #endif /* CLST_META_SEQUENCE_H */
+
+#if 0
+// A test case
+int main() {
+    using clst::meta::for_seq;
+    for_seq<10>::apply([](auto i) {
+        if constexpr (i.value == 999) static_assert(false); // removed at compile time
+        if constexpr (i.value == 0)   std::cout << "Start!\n";
+        std::cout << "loop: " << i.value << ' ';
+    });
+}
+
+#endif

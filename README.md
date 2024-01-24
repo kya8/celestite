@@ -20,4 +20,6 @@ ___WARNING___: This is currently a toy project intended for my personal use only
 * `clst::num_cast`: Numerical type cast that throws error if the arithmetic range cannot be preserved.
 * `clst::container::inline_vector`: Small-size-optimized vector.
 * `clst::argparse`: Command-line argument parsing.
+* Scope guard.
+* Type-erasing runtime-polymorphic object.
 * `clst::numerical`, `clst::algorithm`...

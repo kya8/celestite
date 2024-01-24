@@ -26,7 +26,7 @@ public:
         return ret;
     }
 
-    static tpool& getDefaultPool(std::size_t N=0) noexcept;
+    static tpool& getDefaultPool(std::size_t N=1) noexcept;
 
 private:
     struct Impl;

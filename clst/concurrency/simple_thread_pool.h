@@ -51,13 +51,12 @@ inline simple_thread_pool::simple_thread_pool(std::size_t threads) noexcept
                     std::function<void()> task;
 
                     {
-                        std::unique_lock lk(this->mutex);
-                        this->cond.wait(lk,
-                            [this]{ return this->stop || !this->tasks.empty(); });
-                        if(this->stop && this->tasks.empty())
+                        std::unique_lock lk(mutex);
+                        cond.wait(lk, [&]{ return stop || !tasks.empty(); });
+                        if(stop && tasks.empty())
                             return;
-                        task = std::move(this->tasks.front());
-                        this->tasks.pop_front();
+                        task = std::move(tasks.front());
+                        tasks.pop_front();
                         nb_working += 1;
                     }
 

@@ -115,8 +115,8 @@ struct type_name<std::tuple<Ts...>> {
     static constexpr auto value = mkfs("std::tuple of [") + type_list<Ts...>() + mkfs("]");
 };
 
-template<typename V, typename ..._Rem>
-struct type_name<std::vector<V, _Rem...>> { // discard other template parameters
+template<typename V, typename ...Rem>
+struct type_name<std::vector<V, Rem...>> { // discard other template parameters
     static constexpr auto value = mkfs("std::vector<") + type_name<V>::value + mkfs(">");
 };
 

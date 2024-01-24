@@ -26,6 +26,7 @@ numerical/constants.h numerical/math.h
 strings/fixed_string.h strings/typed_string.h strings/type_name.h
 concurrency/simple_thread_pool.h concurrency/tpool.h concurrency/tpool.cpp
 util/types/ints.h util/timer.h
+common/exceptions.h
 )
 list(TRANSFORM ALL_HEADER_FILES PREPEND ${CLST_ROOT})
 

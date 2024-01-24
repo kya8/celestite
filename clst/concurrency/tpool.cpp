@@ -119,13 +119,7 @@ tpool::getThreadsNum() const noexcept
 tpool&
 tpool::getDefaultPool(std::size_t N) noexcept
 {
-    const auto n = [N]()->std::size_t {
-        if(N>0) return N;
-        const auto n2 = std::thread::hardware_concurrency();
-        if(n2>0) return n2;
-        return 8;
-    }();
-    static tpool tp(n);
+    static tpool tp(N);
     return tp;
 }
 
