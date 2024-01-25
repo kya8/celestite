@@ -8,6 +8,7 @@ namespace clst::errors
 
 class exception_base : public std::runtime_error {
 public:
+    explicit exception_base() : runtime_error("") {}
     using runtime_error::runtime_error;
     virtual ~exception_base() = default;
 };
@@ -24,7 +25,8 @@ public:
     virtual ~numerical_error() = default;
 };
 
-class num_cast_error final : public numerical_error {
+class bad_num_cast final : public numerical_error {
+public:
     using numerical_error::numerical_error;
 };
 

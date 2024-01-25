@@ -22,7 +22,7 @@ set(CLST_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/clst/)
 
 set(ALL_HEADER_FILES
 meta/sequence.h meta/traits.h meta/meta_list.h meta/utils.h
-numerical/constants.h numerical/math.h
+numerical/constants.h numerical/math.h numerical/num_cast.h
 strings/fixed_string.h strings/typed_string.h strings/type_name.h
 concurrency/simple_thread_pool.h concurrency/tpool.h concurrency/tpool.cpp
 util/types/ints.h util/timer.h
