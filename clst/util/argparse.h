@@ -1,5 +1,4 @@
 #include <cstring>
-#include <vector>
 
 namespace clst::util {
 
@@ -8,6 +7,7 @@ namespace clst::util {
 class ArgParse {
 protected:
     bool err_flag = false; // set this to signal error
+    bool stop = false;     // stop w/o error
     int i = 1;
     const int argc = 0;
     char** const argv = nullptr;
@@ -20,7 +20,7 @@ protected:
         }
         return true;
     }
-    
+
     template<typename ...Ts>
     bool match_arg(Ts...args) const noexcept {
         return ((!std::strcmp(argv[i], args)) ||...);
@@ -30,16 +30,16 @@ public:
     ArgParse(int argc, char** argv) noexcept : argc(argc), argv(argv) {}
     bool parse() {
         while (i < argc) {
-            if (err_flag) break;
+            if (err_flag || stop) break;
             parse_current();
             ++i;
         }
         return !err_flag;
     }
-    std::vector<const char*> positional_args;
 };
 
 } // namespace clst::util
+
 
 #if 0
 // an example
@@ -48,6 +48,7 @@ public:
     std::string arg_long, arg_x;
     bool has_s = 0;
     bool has_long = 0;
+    std::vector<const char*> positional_args;
 
     using ArgParse::ArgParse;
 
@@ -68,6 +69,9 @@ protected:
         }
         else if (match_arg("--long")) {
             has_long = 1;
+        }
+        else if (argv[i][0] == '-') {
+            err_flag = 1;
         }
         else {
             positional_args.push_back(argv[i]);
