@@ -1,8 +1,6 @@
 #ifndef CLST_UTIL_CHAR_NUM_H
 #define CLST_UTIL_CHAR_NUM_H
 
-
-
 namespace clst::util
 {
 

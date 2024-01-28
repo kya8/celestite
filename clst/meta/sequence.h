@@ -58,16 +58,3 @@ using make_int_seq = typename details::make_ints<IntT, N>::type;
 }
 
 #endif /* CLST_META_SEQUENCE_H */
-
-#if 0
-// A test case
-int main() {
-    using clst::meta::for_seq;
-    for_seq<10>::apply([](auto i) {
-        if constexpr (i.value == 999) static_assert(false); // removed at compile time
-        if constexpr (i.value == 0)   std::cout << "Start!\n";
-        std::cout << "loop: " << i.value << ' ';
-    });
-}
-
-#endif

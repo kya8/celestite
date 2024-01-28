@@ -59,9 +59,20 @@ list(APPEND ALL_SOURCE_FILES ${GENERATED_DIR}/version.cpp)
 ##### END version
 
 
-add_library(celestite
+add_library(celestite STATIC
 ${ALL_HEADER_FILES}
 ${ALL_SOURCE_FILES}
 )
 
 target_include_directories(celestite PUBLIC .)
+
+
+##### Tests #####
+enable_testing()
+find_package(GTest REQUIRED)
+
+add_executable(test_seq test/sequence.cpp)
+target_link_libraries(test_seq PRIVATE celestite GTest::gtest_main)
+
+include(GoogleTest)
+gtest_discover_tests(test_seq)
