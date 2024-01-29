@@ -73,6 +73,9 @@ find_package(GTest REQUIRED)
 
 add_executable(test_seq test/sequence.cpp)
 target_link_libraries(test_seq PRIVATE celestite GTest::gtest_main)
+add_executable(test_utils test/utils.cpp)
+target_link_libraries(test_utils PRIVATE celestite GTest::gtest_main)
 
 include(GoogleTest)
 gtest_discover_tests(test_seq)
+gtest_discover_tests(test_utils)

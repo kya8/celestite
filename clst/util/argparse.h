@@ -2,19 +2,21 @@
 
 namespace clst::util {
 
-// A stupid, spartan helper class for command line argument parsing.
-// TODO: templated conversion methods.
+// A stupid, spartan helper struct for manual cmdline argument parsing.
 class ArgParse {
 protected:
     bool err_flag = false; // set this to signal error
     bool stop = false;     // stop w/o error
     int i = 1;
     const int argc = 0;
-    char** const argv = nullptr;
+    const char* const* const argv = nullptr;
 
     virtual void parse_current() = 0;
+    virtual bool is_opt(const char*) { // is a recognized option,
+        return false;
+    }
     virtual bool check_next() noexcept {
-        if (i + 1 >= argc || argv[i + 1][0] == '-') {
+        if (i + 1 >= argc || is_opt(argv[i + 1])) {
             err_flag = true;
             return false;
         }
@@ -23,11 +25,16 @@ protected:
 
     template<typename ...Ts>
     bool match_arg(Ts...args) const noexcept {
-        return ((!std::strcmp(argv[i], args)) ||...);
+        return match_str(argv[i], args...);
+    }
+
+    template<typename ...Ts>
+    bool match_str(const char* str, Ts...args) const noexcept {
+        return ((!std::strcmp(str, args)) ||...);
     }
 
 public:
-    ArgParse(int argc, char** argv) noexcept : argc(argc), argv(argv) {}
+    ArgParse(int argc, const char* const* argv) noexcept : argc(argc), argv(argv) {}
     bool parse() {
         while (i < argc) {
             if (err_flag || stop) break;
@@ -39,43 +46,3 @@ public:
 };
 
 } // namespace clst::util
-
-
-#if 0
-// an example
-class MyArgs final : public ArgParse {
-public:
-    std::string arg_long, arg_x;
-    bool has_s = 0;
-    bool has_long = 0;
-    std::vector<const char*> positional_args;
-
-    using ArgParse::ArgParse;
-
-protected:
-    virtual void parse_current() override {
-        if (match_arg("--long_arg")) {
-            if (check_next()) {
-                arg_long = argv[++i];
-            }
-        }
-        else if (match_arg("-x", "--longx")) {
-            if (check_next()) {
-                arg_x = argv[++i];
-            }
-        }
-        else if (match_arg("-s")) {
-            has_s = 1;
-        }
-        else if (match_arg("--long")) {
-            has_long = 1;
-        }
-        else if (argv[i][0] == '-') {
-            err_flag = 1;
-        }
-        else {
-            positional_args.push_back(argv[i]);
-        }
-    }
-};
-#endif
