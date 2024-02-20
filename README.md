@@ -3,7 +3,7 @@
 
 Celestite aims to be self-contained (no external dependencies), portable and conformant.
 
-Everything (except macros) is placed under the **`clst`** namespace.
+Everything (except macros, which are prefixed with **`CLST_`**) is placed under the **`clst`** namespace.
 
 ___WARNING___: This is currently a toy project intended for my personal use only.
 
@@ -19,7 +19,7 @@ ___WARNING___: This is currently a toy project intended for my personal use only
 * `clst::log`: Simple library for logging.
 * `clst::num_cast`: Numerical type cast that throws error if the arithmetic range cannot be preserved.
 * `clst::container::inline_vector`: Small-size-optimized vector.
-* `clst::argparse`: Command-line argument parsing.
+* `clst::hash`: Generic hashing functions.
 * Scope guard.
 * Type-erasing runtime-polymorphic object.
 * `clst::numerical`, `clst::algorithm`...
