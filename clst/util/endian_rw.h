@@ -2,15 +2,15 @@
 #define CLST_UTIL_ENDIAN_RW_H
 
 #include <type_traits>
-#include <utility>
-#include <climits>
+#include <utility>            // index_sequence
+#include <climits>            // CHAR_BIT
+#include "clst/util/endian.h" // We don't want to rely on this, however it's still necessary for non-integral types.
 
 namespace clst::util {
 
 namespace details {
 
 // padding bits?
-// TODO: floating point types.
 
 template<bool BE, typename T, std::size_t ...Is, std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
 inline T read_endian_impl(const unsigned char* data, std::index_sequence<Is...>) noexcept
@@ -21,7 +21,10 @@ inline T read_endian_impl(const unsigned char* data, std::index_sequence<Is...>)
         return reinterpret_cast<const T&>(u);
     }
     else {
-        // floats
+        static_assert(sizeof...(Is) == sizeof(T));
+        T val;
+        ((reinterpret_cast<unsigned char*>(&val)[Is] = data[([]{if constexpr ((CLST_ENDIAN == CLST_BIG_ENDIAN) == BE) return Is; else return (sizeof...(Is) - 1 - Is);}())]),...);
+        return val;
     }
 }
 
@@ -34,7 +37,8 @@ inline void write_endian_impl(const T val, unsigned char* data, std::index_seque
         ((data[Is] = u >> CHAR_BIT * []{if constexpr (BE) return (sizeof...(Is) - 1 - Is); else return Is;}()),...);
     }
     else {
-        // floats
+        static_assert(sizeof...(Is) == sizeof(T));
+        ((data[Is] = reinterpret_cast<const unsigned char*>(&val)[([]{if constexpr ((CLST_ENDIAN == CLST_BIG_ENDIAN) == BE) return Is; else return (sizeof...(Is) - 1 - Is);}())]),...);
     }
 }
 
