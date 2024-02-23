@@ -15,13 +15,11 @@ public:
 class io_error : public exception_base {
 public:
     using exception_base::exception_base;
-    virtual ~io_error() = default;
 };
 
 class numerical_error : public exception_base {
 public:
     using exception_base::exception_base;
-    virtual ~numerical_error() = default;
 };
 
 class num_cast_error final : public numerical_error {
