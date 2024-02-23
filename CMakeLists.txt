@@ -27,6 +27,7 @@ strings/fixed_string.h strings/typed_string.h strings/type_name.h
 concurrency/simple_thread_pool.h concurrency/tpool.h
 util/types/ints.h util/timer.h util/char_num.h util/endian.h util/endian_rw.h
 common/exceptions.h
+stream/binary_stream.h stream/file_stream.h
 )
 list(TRANSFORM ALL_HEADER_FILES PREPEND ${CLST_ROOT})
 

@@ -42,4 +42,17 @@
 #  endif
 #endif // CLST_ENDIAN
 
+
+namespace clst {
+
+enum class Endian {
+    LE = 0,
+    BE = 1,
+    NE = 2
+};
+
+constexpr Endian current_endian = (CLST_ENDIAN == CLST_BIG_ENDIAN)? Endian::BE : Endian::LE;
+
+}
+
 #endif /* CLST_UTIL_ENDIAN_H */
