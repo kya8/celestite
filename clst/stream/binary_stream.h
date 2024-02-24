@@ -13,6 +13,12 @@ enum class SeekFrom {
     End
 };
 
+enum class OpenMode {
+    Read,
+    Write,
+    ReadWrite
+};
+
 class Base {
 public:
     virtual bool is_open() const noexcept = 0;
@@ -42,7 +48,7 @@ public:
 
 class BinaryStreamBase : virtual public BasicBinaryStreamBase {
 public:
-    void copy_from(Readable& in, std::size_t n, std::size_t bufsize = 1024*1024*4);
+    void copy_from(Readable& in, std::size_t nbytes, std::size_t bufsize = 1024*1024*4);
     void patch_bytes(offset_type offset, const void* buf, std::size_t n);
 
     // these are explicitly instantiated in source file.

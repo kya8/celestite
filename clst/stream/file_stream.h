@@ -11,7 +11,7 @@ public:
     BasicFileStream() noexcept;
     ~BasicFileStream() noexcept override;
 
-    bool open(const char* filename, const char* mode) noexcept;
+    bool open(const char* filename, OpenMode mode) noexcept;
     bool close() noexcept;
     bool is_open() const noexcept override;
 

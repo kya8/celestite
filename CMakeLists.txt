@@ -27,13 +27,14 @@ strings/fixed_string.h strings/typed_string.h strings/type_name.h
 concurrency/simple_thread_pool.h concurrency/tpool.h
 util/types/ints.h util/timer.h util/char_num.h util/endian.h util/endian_rw.h
 common/exceptions.h
-stream/binary_stream.h stream/file_stream.h
+stream/binary_stream.h stream/file_stream.h stream/lfs.h
 )
 list(TRANSFORM ALL_HEADER_FILES PREPEND ${CLST_ROOT})
 
 set(ALL_SOURCE_FILES
 concurrency/tpool.cpp
 util/char_num.cpp
+stream/binary_stream.cpp stream/file_stream.cpp
 )
 list(TRANSFORM ALL_SOURCE_FILES PREPEND ${CLST_ROOT})
 
