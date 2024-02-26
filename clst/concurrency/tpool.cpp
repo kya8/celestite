@@ -10,15 +10,17 @@ namespace clst::concurrency {
 struct tpool::Impl {
     std::vector<std::thread> workers;
     std::deque<std::packaged_task<ReturnType()>> tasks;
+    std::size_t max_jobs;
 
     std::mutex queue_mutex;
     std::condition_variable cond;
+    std::condition_variable cond_enqueue;
     bool stop = false;
 
     std::size_t nb_working = 0;
     std::condition_variable working_cond;
 
-    Impl(std::size_t N) noexcept
+    Impl(std::size_t N, std::size_t max_jobs_) noexcept : max_jobs(max_jobs_)
     {
         for (std::size_t i = 0; i < N; ++i) {
             workers.emplace_back(
@@ -35,6 +37,9 @@ struct tpool::Impl {
                             task = std::move(tasks.front());
                             tasks.pop_front();
                             nb_working += 1;
+                        }
+                        if (max_jobs) {
+                            cond_enqueue.notify_one();
                         }
 
                         task();
@@ -75,11 +80,13 @@ struct tpool::Impl {
     void enqueue(TaskType&& task)
     {
         {
-            std::scoped_lock lk(queue_mutex);
+            std::unique_lock lk(queue_mutex);
             if (stop) {
                 throw std::runtime_error("Enqueuing on stopped thread pool");
             }
-
+            if (max_jobs) {
+                cond_enqueue.wait(lk, [&]{return tasks.size() < max_jobs;});
+            }
             tasks.emplace_back(std::move(task));
         }
         cond.notify_one();
@@ -92,8 +99,7 @@ tpool::enqueue(TaskType&& task)
     impl->enqueue(std::move(task));
 }
 
-tpool::tpool(std::size_t nb_threads) noexcept : impl(std::make_unique<Impl>(nb_threads))
-{}
+tpool::tpool(std::size_t nb_threads, std::size_t max_jobs) noexcept : impl(std::make_unique<Impl>(nb_threads, max_jobs)) {}
 
 tpool::~tpool() = default;
 

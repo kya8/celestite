@@ -16,7 +16,7 @@ namespace clst::concurrency {
 
 class simple_thread_pool {
 public:
-    simple_thread_pool(std::size_t nb_threads) noexcept;
+    simple_thread_pool(std::size_t nb_threads, std::size_t max_jobs = 0) noexcept;
     ~simple_thread_pool() noexcept;
 
     template<typename F, typename... Args>
@@ -30,9 +30,11 @@ public:
 private:
     std::vector<std::thread> workers;
     std::deque<std::function<void()>> tasks;
+    std::size_t max_jobs;
 
     std::mutex mutex;
     std::condition_variable cond;
+    std::condition_variable cond_enqueue;
     bool stop = false;
 
     std::size_t nb_working = 0;
@@ -40,7 +42,7 @@ private:
 };
 
 
-inline simple_thread_pool::simple_thread_pool(std::size_t threads) noexcept
+inline simple_thread_pool::simple_thread_pool(std::size_t threads, std::size_t max_jobs_) noexcept : max_jobs(max_jobs_)
 {
     for(std::size_t i = 0;i<threads;++i)
         workers.emplace_back(
@@ -58,6 +60,9 @@ inline simple_thread_pool::simple_thread_pool(std::size_t threads) noexcept
                         task = std::move(tasks.front());
                         tasks.pop_front();
                         nb_working += 1;
+                    }
+                    if (max_jobs) {
+                        cond_enqueue.notify_one();
                     }
 
                     task();
@@ -95,9 +100,12 @@ auto simple_thread_pool::enqueue(F&& f, Args&&... args)
     auto future = task->get_future();
 
     {
-        std::scoped_lock lk(mutex);
+        std::unique_lock lk(mutex);
         if(stop) {
             throw std::runtime_error("Enqueuing on stopped thread pool");
+        }
+        if (max_jobs) {
+            cond_enqueue.wait(lk, [&] { return tasks.size() < max_jobs; });
         }
         tasks.emplace_back([task = std::move(task)]()->void { (*task)(); });
     }

@@ -9,7 +9,7 @@ namespace clst::concurrency {
 
 class tpool {
 public:
-    tpool(std::size_t nb_threads) noexcept;
+    tpool(std::size_t nb_threads, std::size_t max_jobs = 0) noexcept;
     ~tpool() noexcept;
 
     void stopAll() noexcept;
