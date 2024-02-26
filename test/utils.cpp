@@ -16,19 +16,19 @@ TEST(ArgParse, BasicWithNum)
         bool   has_v = false;
         std::vector<std::string> positional_args;
 
-        void parse_current() override {
-            if (match_arg("-v", "--v_long")) {
+        void parseCurrent() override {
+            if (matchArg("-v", "--v_long")) {
                 has_v = true;
             }
-            else if (match_arg("--long")) {
-                if(check_next()) {
+            else if (matchArg("--long")) {
+                if(checkNext()) {
                     if(!char_num(argv[++i], long_arg)) {
                         err_flag = true;
                     }
                 }
             }
-            else if (match_arg("-s")) {
-                if(check_next()) {
+            else if (matchArg("-s")) {
+                if(checkNext()) {
                     if(!char_num(argv[++i], short_arg)) {
                         err_flag = true;
                     }

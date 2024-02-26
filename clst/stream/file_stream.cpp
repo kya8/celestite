@@ -23,7 +23,7 @@ struct BasicFileStream::Impl {
             if (mode == OpenMode::Read)      return "rb";
             if (mode == OpenMode::Write)     return "wb";
             if (mode == OpenMode::ReadWrite) return "r+b";
-            throw error::invalid_argument("Unhandled open mode");
+            throw error::InvalidArgument("Unhandled open mode");
         }());
         if (!fp) return false;
 
@@ -37,7 +37,7 @@ struct BasicFileStream::Impl {
         is_open = true;
         return true;
     }
-    catch (error::exception_base) {
+    catch (error::ExceptionBase) {
         return false;
     }
 
@@ -56,14 +56,14 @@ struct BasicFileStream::Impl {
     {
         // not check is performed. Behavior on non-open stream is undefined.
         if (fread(buf, 1, size, fp) != size) {
-            throw error::io_error("error reading from file");
+            throw error::IoError("error reading from file");
         }
     }
 
     void write(const void* buf, std::size_t size)
     {
         if (fwrite(buf, 1, size, fp) != size) {
-            throw error::io_error("error writing to file");
+            throw error::IoError("error writing to file");
         }
     }
 
@@ -78,14 +78,14 @@ struct BasicFileStream::Impl {
                         }
                     }()) != 0)
         {
-            throw error::io_error("error seeking file");
+            throw error::IoError("error seeking file");
         }
     }
 
     auto tell() const
     {
         const auto pos = ftell64(fp);
-        if (pos == -1) throw error::io_error("ftell error");
+        if (pos == -1) throw error::IoError("ftell error");
         return pos;
     }
 };
@@ -103,13 +103,13 @@ bool BasicFileStream::close() noexcept
     return impl->close();
 }
 
-bool BasicFileStream::is_open() const noexcept
+bool BasicFileStream::isOpen() const noexcept
 {
     return impl->is_open;
 }
 
 std::uint64_t
-BasicFileStream::get_length() const
+BasicFileStream::getLength() const
 {
     return impl->fsize;
 }

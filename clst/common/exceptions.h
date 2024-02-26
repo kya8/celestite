@@ -6,30 +6,30 @@
 namespace clst::error
 {
 
-class exception_base : public std::runtime_error {
+class ExceptionBase : public std::runtime_error {
 public:
-    virtual ~exception_base() = default;
+    virtual ~ExceptionBase() = default;
 protected:
     using runtime_error::runtime_error;
 };
 
-class io_error : public exception_base {
+class IoError : public ExceptionBase {
 public:
-    using exception_base::exception_base;
+    using ExceptionBase::ExceptionBase;
 };
 
-class invalid_argument : public exception_base {
+class InvalidArgument : public ExceptionBase {
 public:
-    using exception_base::exception_base;
+    using ExceptionBase::ExceptionBase;
 };
 
-class numerical_error : public exception_base {
+class NumericalError : public ExceptionBase {
 public:
-    using exception_base::exception_base;
+    using ExceptionBase::ExceptionBase;
 };
 
-class num_cast_error final : public numerical_error {
-    using numerical_error::numerical_error;
+class BadNumCast final : public NumericalError {
+    using NumericalError::NumericalError;
 };
 
 } // namespace clst::error

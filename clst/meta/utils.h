@@ -6,26 +6,26 @@
 namespace clst::meta::utils {
 
 template<typename T, typename ...Ts>
-constexpr bool eq_one(const T& x, const Ts&...args)
+constexpr bool eqOne(const T& x, const Ts&...args)
 {
     return ((x == args)||...);
 }
 
 template<typename T, typename ...Ts>
-constexpr bool eq_all(const T& x, const Ts&...args)
+constexpr bool eqAll(const T& x, const Ts&...args)
 {
     return ((x == args)&&...);
 }
 
 
 template<typename T>
-constexpr auto& as_mutable(T& t) noexcept // T can be const or non-const
+constexpr auto& asMutable(T& t) noexcept // T can be const or non-const
 {
     return const_cast<std::remove_const_t<T>&>(t);
 }
 // This overload catches(and disallow) any rvalue argument
 template<typename T>
-void as_mutable(const T&&) = delete;
+void asMutable(const T&&) = delete;
 
 } /* namespace utils */
 

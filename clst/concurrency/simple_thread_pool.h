@@ -14,19 +14,19 @@
 
 namespace clst::concurrency {
 
-class simple_thread_pool {
+class SimpleThreadPool {
 public:
-    simple_thread_pool(std::size_t nb_threads, std::size_t max_jobs = 0) noexcept;
-    ~simple_thread_pool() noexcept;
+    SimpleThreadPool(std::size_t nb_threads, std::size_t max_jobs = 0) noexcept;
+    ~SimpleThreadPool() noexcept;
 
     template<typename F, typename... Args>
     auto enqueue(F&& f, Args&&... args);
 
     template<typename F, typename... Args>
-    void enqueue_without_future(F&& f, Args&&... args);
+    void enqueueWithoutFuture(F&& f, Args&&... args);
 
-    void wait_all() noexcept;
-    void stop_all() noexcept;
+    void waitAll() noexcept;
+    void stopAll() noexcept;
 private:
     std::vector<std::thread> workers;
     std::deque<std::function<void()>> tasks;
@@ -42,9 +42,9 @@ private:
 };
 
 
-inline simple_thread_pool::simple_thread_pool(std::size_t threads, std::size_t max_jobs_) noexcept : max_jobs(max_jobs_)
+inline SimpleThreadPool::SimpleThreadPool(std::size_t nb_threads, std::size_t max_jobs_) noexcept : max_jobs(max_jobs_)
 {
-    for(std::size_t i = 0;i<threads;++i)
+    for(std::size_t i = 0;i<nb_threads;++i)
         workers.emplace_back(
             [this]
             {
@@ -80,7 +80,7 @@ inline simple_thread_pool::simple_thread_pool(std::size_t threads, std::size_t m
 
 
 template<typename F, typename... Args>
-auto simple_thread_pool::enqueue(F&& f, Args&&... args)
+auto SimpleThreadPool::enqueue(F&& f, Args&&... args)
 {
     using return_type = std::invoke_result_t<F, Args...>;
 
@@ -114,7 +114,7 @@ auto simple_thread_pool::enqueue(F&& f, Args&&... args)
 }
 
 template<typename F, typename... Args>
-void simple_thread_pool::enqueue_without_future(F&& f, Args&&... args)
+void SimpleThreadPool::enqueueWithoutFuture(F&& f, Args&&... args)
 {
     {
         std::scoped_lock lk(mutex);
@@ -132,14 +132,14 @@ void simple_thread_pool::enqueue_without_future(F&& f, Args&&... args)
 }
 
 
-inline simple_thread_pool::~simple_thread_pool() noexcept
+inline SimpleThreadPool::~SimpleThreadPool() noexcept
 {
-    stop_all();
+    stopAll();
 }
 
 // "graceful" stop
 // This'll prevent adding new task, finish the remaining task queue, and join all worker threads.
-inline void simple_thread_pool::stop_all() noexcept
+inline void SimpleThreadPool::stopAll() noexcept
 {
     {
         std::scoped_lock lk(mutex);
@@ -152,7 +152,7 @@ inline void simple_thread_pool::stop_all() noexcept
 }
 
 // Returns when there is no thread working, and no task queued.
-inline void simple_thread_pool::wait_all() noexcept
+inline void SimpleThreadPool::waitAll() noexcept
 {
     std::unique_lock lk(mutex);
     cond_pool.wait(lk, [&] { return nb_working == 0 && tasks.empty(); });

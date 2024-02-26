@@ -21,7 +21,7 @@ enum class OpenMode {
 
 class Base {
 public:
-    virtual bool is_open() const noexcept = 0;
+    virtual bool isOpen() const noexcept = 0;
 };
 
 class Seekable {
@@ -48,15 +48,15 @@ public:
 
 class BinaryStreamBase : virtual public BasicBinaryStreamBase {
 public:
-    void copy_from(Readable& in, std::size_t nbytes, std::size_t bufsize = 1024*1024*4);
-    void patch_bytes(offset_type offset, const void* buf, std::size_t n);
+    void copyFrom(Readable& in, std::size_t nbytes, std::size_t bufsize = 1024*1024*4);
+    void patchBytes(offset_type offset, const void* buf, std::size_t n);
 
     // these are explicitly instantiated in source file.
     template<Endian endian, typename T, unsigned Bytes = sizeof(T)>
-    T read_num();
+    T readNum();
 
     template<Endian endian, typename T, unsigned Bytes = sizeof(T)>
-    void write_num(const T& src);
+    void writeNum(const T& src);
 };
 
 

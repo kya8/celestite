@@ -7,7 +7,7 @@
 
 namespace clst::concurrency {
 
-struct tpool::Impl {
+struct ThreadPool::Impl {
     std::vector<std::thread> workers;
     std::deque<std::packaged_task<ReturnType()>> tasks;
     std::size_t max_jobs;
@@ -94,38 +94,38 @@ struct tpool::Impl {
 };
 
 void
-tpool::enqueue(TaskType&& task)
+ThreadPool::enqueue(TaskType&& task)
 {
     impl->enqueue(std::move(task));
 }
 
-tpool::tpool(std::size_t nb_threads, std::size_t max_jobs) noexcept : impl(std::make_unique<Impl>(nb_threads, max_jobs)) {}
+ThreadPool::ThreadPool(std::size_t nb_threads, std::size_t max_jobs) noexcept : impl(std::make_unique<Impl>(nb_threads, max_jobs)) {}
 
-tpool::~tpool() = default;
+ThreadPool::~ThreadPool() = default;
 
 void
-tpool::stopAll() noexcept
+ThreadPool::stopAll() noexcept
 {
     impl->stopAll();
 }
 
 void
-tpool::waitAll() noexcept
+ThreadPool::waitAll() noexcept
 {
     impl->waitAll();
 }
 
 std::size_t
-tpool::getThreadsNum() const noexcept
+ThreadPool::getThreadsNum() const noexcept
 {
     return impl->workers.size();
 }
 
 
-tpool&
-tpool::getDefaultPool(std::size_t N) noexcept
+ThreadPool&
+ThreadPool::getDefaultPool(std::size_t N) noexcept
 {
-    static tpool tp(N);
+    static ThreadPool tp(N);
     return tp;
 }
 

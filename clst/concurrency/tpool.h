@@ -7,16 +7,16 @@
 
 namespace clst::concurrency {
 
-class tpool {
+class ThreadPool {
 public:
-    tpool(std::size_t nb_threads, std::size_t max_jobs = 0) noexcept;
-    ~tpool() noexcept;
+    ThreadPool(std::size_t nb_threads, std::size_t max_jobs = 0) noexcept;
+    ~ThreadPool() noexcept;
 
     void stopAll() noexcept;
     void waitAll() noexcept;
     std::size_t getThreadsNum() const noexcept;
 
-    using ReturnType = long long int;
+    using ReturnType = int;
 
     template<typename F>
     auto enqueue(F&& f) {
@@ -26,7 +26,7 @@ public:
         return ret;
     }
 
-    static tpool& getDefaultPool(std::size_t N=1) noexcept;
+    static ThreadPool& getDefaultPool(std::size_t N=1) noexcept;
 
 private:
     struct Impl;

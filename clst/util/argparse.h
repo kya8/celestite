@@ -11,12 +11,12 @@ protected:
     const int argc = 0;
     const char* const* const argv = nullptr;
 
-    virtual void parse_current() = 0;
-    virtual bool is_opt(const char*) { // is a recognized option,
+    virtual void parseCurrent() = 0;
+    virtual bool isOpt(const char*) { // is a recognized option,
         return false;
     }
-    virtual bool check_next() noexcept {
-        if (i + 1 >= argc || is_opt(argv[i + 1])) {
+    virtual bool checkNext() noexcept {
+        if (i + 1 >= argc || isOpt(argv[i + 1])) {
             err_flag = true;
             return false;
         }
@@ -24,12 +24,12 @@ protected:
     }
 
     template<typename ...Ts>
-    bool match_arg(Ts...args) const noexcept {
-        return match_str(argv[i], args...);
+    bool matchArg(Ts...args) const noexcept {
+        return matchStr(argv[i], args...);
     }
 
     template<typename ...Ts>
-    bool match_str(const char* str, Ts...args) const noexcept {
+    bool matchStr(const char* str, Ts...args) const noexcept {
         return ((!std::strcmp(str, args)) ||...);
     }
 
@@ -38,7 +38,7 @@ public:
     bool parse() {
         while (i < argc) {
             if (err_flag || stop) break;
-            parse_current();
+            parseCurrent();
             ++i;
         }
         return !err_flag;

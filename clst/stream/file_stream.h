@@ -13,9 +13,9 @@ public:
 
     bool open(const char* filename, OpenMode mode) noexcept;
     bool close() noexcept;
-    bool is_open() const noexcept override;
+    bool isOpen() const noexcept override;
 
-    std::uint64_t get_length() const;
+    std::uint64_t getLength() const;
     void read(void* buf, std::size_t size) override;
     void write(const void* buf, std::size_t size) override;
     void seek(offset_type offset, SeekFrom from = SeekFrom::Begin) override;

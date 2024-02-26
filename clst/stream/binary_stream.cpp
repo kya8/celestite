@@ -8,10 +8,10 @@ namespace clst::stream
 {
 
 void
-BinaryStreamBase::copy_from(Readable& in, std::size_t nbytes, std::size_t bufsize)
+BinaryStreamBase::copyFrom(Readable& in, std::size_t nbytes, std::size_t bufsize)
 {
     if (bufsize == 0) {
-        throw error::invalid_argument("buffer size must be positive");
+        throw error::InvalidArgument("buffer size must be positive");
     }
 
     const auto buf = std::make_unique<unsigned char[]>(bufsize);
@@ -24,7 +24,7 @@ BinaryStreamBase::copy_from(Readable& in, std::size_t nbytes, std::size_t bufsiz
 }
 
 void
-BinaryStreamBase::patch_bytes(offset_type offset, const void* buf, std::size_t n)
+BinaryStreamBase::patchBytes(offset_type offset, const void* buf, std::size_t n)
 {
     const auto mark = tell();
     seek(offset, SeekFrom::Begin);
@@ -34,15 +34,15 @@ BinaryStreamBase::patch_bytes(offset_type offset, const void* buf, std::size_t n
 
 template<Endian endian, typename T, unsigned Bytes>
 T
-BinaryStreamBase::read_num()
+BinaryStreamBase::readNum()
 {
     unsigned char buf[Bytes];
     read(buf, Bytes);
     if constexpr (endian == Endian::BE) {
-        return util::read_BE<T, Bytes>(buf);
+        return util::readBE<T, Bytes>(buf);
     }
     else if constexpr (endian == Endian::LE) {
-        return util::read_LE<T, Bytes>(buf);
+        return util::readLE<T, Bytes>(buf);
     }
     else {
         static_assert(false, "endian must be LE or BE");
@@ -51,14 +51,14 @@ BinaryStreamBase::read_num()
 
 template<Endian endian, typename T, unsigned Bytes>
 void
-BinaryStreamBase::write_num(const T& src)
+BinaryStreamBase::writeNum(const T& src)
 {
     unsigned char buf[Bytes];
     if constexpr (endian == Endian::BE) {
-        util::write_BE<T, Bytes>(src, buf);
+        util::writeBE<T, Bytes>(src, buf);
     }
     else if constexpr (endian == Endian::LE) {
-        util::write_LE<T, Bytes>(src, buf);
+        util::writeLE<T, Bytes>(src, buf);
     }
     else {
         static_assert(false, "endian must be LE or BE");
@@ -68,10 +68,10 @@ BinaryStreamBase::write_num(const T& src)
 
 
 /* explicit instantiations */
-#define MAKE_INSTANTIATION_READ(ENDIAN, T, BYTES)   template T BinaryStreamBase::read_num<Endian::ENDIAN, T, BYTES>()
-#define MAKE_INSTANTIATION_READ_DEFAULT(ENDIAN, T)  template T BinaryStreamBase::read_num<Endian::ENDIAN, T>()
-#define MAKE_INSTANTIATION_WRITE(ENDIAN, T, BYTES)  template void BinaryStreamBase::write_num<Endian::ENDIAN, T, BYTES>(const T&)
-#define MAKE_INSTANTIATION_WRITE_DEFAULT(ENDIAN, T) template void BinaryStreamBase::write_num<Endian::ENDIAN, T>(const T&)
+#define MAKE_INSTANTIATION_READ(ENDIAN, T, BYTES)   template T BinaryStreamBase::readNum<Endian::ENDIAN, T, BYTES>()
+#define MAKE_INSTANTIATION_READ_DEFAULT(ENDIAN, T)  template T BinaryStreamBase::readNum<Endian::ENDIAN, T>()
+#define MAKE_INSTANTIATION_WRITE(ENDIAN, T, BYTES)  template void BinaryStreamBase::writeNum<Endian::ENDIAN, T, BYTES>(const T&)
+#define MAKE_INSTANTIATION_WRITE_DEFAULT(ENDIAN, T) template void BinaryStreamBase::writeNum<Endian::ENDIAN, T>(const T&)
 
 MAKE_INSTANTIATION_READ_DEFAULT(LE, char);
 MAKE_INSTANTIATION_READ_DEFAULT(BE, char);

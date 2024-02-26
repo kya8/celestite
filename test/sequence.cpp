@@ -9,7 +9,7 @@ TEST(Sequence, ForSeqBasic)
     std::ostringstream s_seq, s_loop;
     static constexpr auto nb_loops = 10;
 
-    for_seq<nb_loops>::apply([&s_seq](auto i) {
+    ForSeq<nb_loops>::apply([&s_seq](auto i) {
         if constexpr (i.value == 999) static_assert(false); // removed at compile time
         if constexpr (i.value == 0) s_seq << "Start!\n";
         s_seq << "loop: " << i.value << ' ';

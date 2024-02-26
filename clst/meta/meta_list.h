@@ -10,17 +10,17 @@ namespace clst::meta {
 
 // forwad declarations
 template <auto V>
-struct tag;
+struct Tag;
 template <typename ...Ts>
-struct type_list;
+struct TypeList;
 template <auto ...Vs>
-struct var_list;
+struct VarList;
 template <typename T, T ...Vs>
-struct uni_list;
+struct UniList;
 
 
 template <auto V>
-struct tag {
+struct Tag {
     using value_type = decltype(V);
     static constexpr auto value = V;
 
@@ -30,7 +30,7 @@ struct tag {
 };
 
 template <typename ...Ts>
-struct type_list {
+struct TypeList {
     static constexpr auto size = sizeof...(Ts);
 
     template<typename F>
@@ -43,7 +43,7 @@ struct type_list {
 
     template<typename F>
     static constexpr auto transform(F&& f) noexcept {
-        return type_list<decltype(f(std::declval<Ts>()))...>{};
+        return TypeList<decltype(f(std::declval<Ts>()))...>{};
     }
 
     template<template<typename> typename TMP>
@@ -51,7 +51,7 @@ struct type_list {
 };
 
 template <auto ...Vs>
-struct var_list {
+struct VarList {
     static constexpr auto size = sizeof...(Vs);
 
     template<typename F>
@@ -64,13 +64,13 @@ struct var_list {
     template<auto N>
     using type_at = traits::pack_index_value_type<N, Vs...>;
 
-    using to_uni = uni_list<std::common_type_t<decltype(Vs)...>, Vs...>;
+    using to_uni = UniList<std::common_type_t<decltype(Vs)...>, Vs...>;
     template<auto N>
-    using force_uni = uni_list<type_at<N>, Vs...>;
-    using to_type_list = type_list<tag<Vs>...>;
+    using force_uni = UniList<type_at<N>, Vs...>;
+    using to_type_list = TypeList<Tag<Vs>...>;
 
     template<template<auto> typename TMP>
-    using transform_template = var_list<TMP<Vs>::value...>;
+    using transform_template = VarList<TMP<Vs>::value...>;
 };
 
 namespace details {
@@ -83,7 +83,7 @@ struct static_store {
 } /* details ns */
 
 template <typename T, T ...Vs>
-struct uni_list {
+struct UniList {
     using value_type = T;
     static constexpr auto size = sizeof...(Vs);
     // optional storage:
@@ -96,7 +96,7 @@ struct uni_list {
 
     template<typename F>
     static constexpr void apply2(F&& f) {
-        (void(f(tag<Vs>{})), ...);  // Vs can be catched by a generic lambda
+        (void(f(Tag<Vs>{})), ...);  // Vs can be catched by a generic lambda
     }
 
     template<auto N>
@@ -115,16 +115,16 @@ struct uni_list {
 
     template<typename F>
     static constexpr auto transform(F&& f) noexcept {  // stupid pre-C++20 hack
-        return uni_list<T, decltype(f(tag<Vs>{}))::value...>{};
+        return UniList<T, decltype(f(Tag<Vs>{}))::value...>{};
     }
     template<auto F>
-    using transform_t = uni_list<T, F(Vs)...>;
+    using transform_t = UniList<T, F(Vs)...>;
 
     template<template<auto> typename TMP>
-    using transform_template = uni_list<T, TMP<Vs>::value...>;
+    using transform_template = UniList<T, TMP<Vs>::value...>;
 
-    using to_type_list = type_list<tag<Vs>...>;
-    using to_var = var_list<Vs...>;
+    using to_type_list = TypeList<Tag<Vs>...>;
+    using to_var = VarList<Vs...>;
 
 };
 
