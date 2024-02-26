@@ -60,7 +60,7 @@ else()
 endif()
 
 set(GENERATED_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated)
-configure_file(version.cpp.in ${GENERATED_DIR}/version.cpp @ONLY)
+configure_file(${CLST_ROOT}/version.cpp.in ${GENERATED_DIR}/version.cpp @ONLY)
 list(APPEND ALL_SOURCE_FILES ${GENERATED_DIR}/version.cpp)
 ##### END version
 
