@@ -4,6 +4,7 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include "exceptions.h"
 
 namespace clst::concurrency {
 
@@ -82,7 +83,7 @@ struct ThreadPool::Impl {
         {
             std::unique_lock lk(queue_mutex);
             if (stop) {
-                throw std::runtime_error("Enqueuing on stopped thread pool");
+                throw error::ThreadPoolError("Cannot enqueue on stopped thread pool.");
             }
             if (max_jobs) {
                 cond_enqueue.wait(lk, [&]{return tasks.size() < max_jobs;});

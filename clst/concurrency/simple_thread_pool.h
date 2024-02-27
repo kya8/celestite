@@ -1,16 +1,17 @@
 #ifndef CLST_CONCURRENCY_SIMPLE_THREAD_POOL_H
 #define CLST_CONCURRENCY_SIMPLE_THREAD_POOL_H
 
-#include <vector>
-#include <deque>
-#include <memory>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
 #include <future>
+#include <vector>
+#include <deque>
+#include <memory>
 #include <functional>
 #include <cstddef>
 #include <type_traits>
+#include "exceptions.h"
 
 namespace clst::concurrency {
 
@@ -102,7 +103,7 @@ auto SimpleThreadPool::enqueue(F&& f, Args&&... args)
     {
         std::unique_lock lk(mutex);
         if(stop) {
-            throw std::runtime_error("Enqueuing on stopped thread pool");
+            throw error::ThreadPoolError("Cannot enqueue on stopped thread pool.");
         }
         if (max_jobs) {
             cond_enqueue.wait(lk, [&] { return tasks.size() < max_jobs; });
@@ -117,9 +118,12 @@ template<typename F, typename... Args>
 void SimpleThreadPool::enqueueWithoutFuture(F&& f, Args&&... args)
 {
     {
-        std::scoped_lock lk(mutex);
+        std::unique_lock lk(mutex);
         if(stop) {
-            throw std::runtime_error("Enqueuing on stopped thread pool");
+            throw error::ThreadPoolError("Cannot enqueue on stopped thread pool.");
+        }
+        if (max_jobs) {
+            cond_enqueue.wait(lk, [&] { return tasks.size() < max_jobs; });
         }
         if constexpr (sizeof...(Args) == 0) {
             tasks.emplace_back(std::forward<F>(f));

@@ -13,6 +13,11 @@ protected:
     using runtime_error::runtime_error;
 };
 
+class RuntimeError : public ExceptionBase {
+public:
+    using ExceptionBase::ExceptionBase;
+};
+
 class IoError : public ExceptionBase {
 public:
     using ExceptionBase::ExceptionBase;
@@ -21,15 +26,6 @@ public:
 class InvalidArgument : public ExceptionBase {
 public:
     using ExceptionBase::ExceptionBase;
-};
-
-class NumericalError : public ExceptionBase {
-public:
-    using ExceptionBase::ExceptionBase;
-};
-
-class BadNumCast final : public NumericalError {
-    using NumericalError::NumericalError;
 };
 
 } // namespace clst::error
