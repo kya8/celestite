@@ -13,7 +13,7 @@ struct ThreadPool::Impl {
     std::deque<std::packaged_task<ReturnType()>> tasks;
     std::size_t max_jobs;
 
-    std::mutex queue_mutex;
+    std::mutex mutex_;
     std::condition_variable cond;
     std::condition_variable cond_enqueue;
     bool stop = false;
@@ -30,7 +30,7 @@ struct ThreadPool::Impl {
                         TaskType task;
 
                         {
-                            std::unique_lock lk(queue_mutex);
+                            std::unique_lock lk(mutex_);
                             cond.wait(lk,
                                       [&] { return stop || !tasks.empty(); });
                             if (stop && tasks.empty())
@@ -46,7 +46,7 @@ struct ThreadPool::Impl {
                         task();
 
                         {
-                            std::scoped_lock lk(queue_mutex);
+                            std::scoped_lock lk(mutex_);
                             if (--nb_working == 0) {
                                 working_cond.notify_all();
                             }
@@ -59,7 +59,7 @@ struct ThreadPool::Impl {
     void stopAll() noexcept
     {
         {
-            std::scoped_lock lk(queue_mutex);
+            std::scoped_lock lk(mutex_);
             stop = true;
         }
         cond.notify_all();
@@ -74,14 +74,14 @@ struct ThreadPool::Impl {
 
     void waitAll() noexcept
     {
-        std::unique_lock lk(queue_mutex);
+        std::unique_lock lk(mutex_);
         working_cond.wait(lk, [&] { return nb_working == 0 && tasks.empty(); });
     }
 
     void enqueue(TaskType&& task)
     {
         {
-            std::unique_lock lk(queue_mutex);
+            std::unique_lock lk(mutex_);
             if (stop) {
                 throw error::ThreadPoolError("Cannot enqueue on stopped thread pool.");
             }
@@ -116,12 +116,31 @@ ThreadPool::waitAll() noexcept
     impl->waitAll();
 }
 
+// Ideally, shared locking should be used in observers here... Or use atomics
 std::size_t
-ThreadPool::getThreadsNum() const noexcept
+ThreadPool::getThreadCount() const noexcept
 {
-    return impl->workers.size();
+    {
+        std::scoped_lock lk(impl->mutex_);
+        return impl->workers.size();
+    }
 }
-
+std::size_t
+ThreadPool::getQueuedCount() const noexcept
+{
+    {
+        std::scoped_lock lk(impl->mutex_);
+        return impl->tasks.size();
+    }
+}
+std::size_t
+ThreadPool::getWorkingCount() const noexcept
+{
+    {
+        std::scoped_lock lk(impl->mutex_);
+        return impl->nb_working;
+    }
+}
 
 ThreadPool&
 ThreadPool::getDefaultPool(std::size_t N) noexcept

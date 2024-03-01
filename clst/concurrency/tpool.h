@@ -14,7 +14,9 @@ public:
 
     void stopAll() noexcept;
     void waitAll() noexcept;
-    std::size_t getThreadsNum() const noexcept;
+    std::size_t getThreadCount() const noexcept;
+    std::size_t getQueuedCount() const noexcept;
+    std::size_t getWorkingCount() const noexcept;
 
     using ReturnType = int;
 

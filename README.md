@@ -12,6 +12,7 @@ ___WARNING___: This is currently a toy project intended for my personal use only
 * `clst::type_name`: Generates human-readable name for types at compile time.
 * `clst::thread_pool`: Simple thread pool implementation.
 * `clst::meta`: Meta-programming facilities.
+* `clst::iter`: Utilities for working with iterators.
 * `clst::binary_stream`: Raw binary streams for endianness-aware I/O.
 * Miscellaneous utilities.
 
