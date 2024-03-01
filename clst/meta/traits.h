@@ -13,13 +13,15 @@ constexpr bool is_one_of_v = std::disjunction_v<std::is_same<T, Ts>...>;
 template<typename T, typename ...Ts>
 constexpr bool is_all_same_v = std::conjunction_v<std::is_same<T, Ts>...>;
 
+/* helper dependent types */
 template<typename...>
 constexpr bool always_false_v = false;
 template<typename...>
 constexpr bool always_true_v = true;
-
-template<typename T, typename...>
-using always_T = T;
+template<typename T, typename ...>
+using always_T_with_types = T;
+template<typename T, auto ...>
+using always_T_with_values = T;
 
 
 template <typename T, template <typename...> typename Template>
