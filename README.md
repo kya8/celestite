@@ -12,12 +12,13 @@ Everything (except macros, which are prefixed with **`CLST_`**) is placed under 
 * `clst::meta`: Meta-programming facilities.
 * `clst::iter`: Utilities for iterations.
 * `clst::binary_stream`: Raw binary streams for endianness-aware I/O.
+* Containers: Ring buffer, ...
 * Miscellaneous utilities.
 
 # To-do
 * `clst::log`: Simple library for logging.
 * `clst::num_cast`: Numerical type cast that throws error if the arithmetic range cannot be preserved.
-* `clst::container::inline_vector`: Small-size-optimized vector.
+* `clst::inline_vector`: Small-size-optimized vector.
 * `clst::hash`: Generic hashing functions.
 * Scope guard.
 * Type-erasing runtime-polymorphic object.

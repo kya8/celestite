@@ -29,6 +29,7 @@ util/types/ints.h util/timer.h util/char_num.h util/endian.h util/endian_rw.h ut
 common/exceptions.h
 stream/binary_stream.h stream/file_stream.h stream/lfs.h
 iter/enumerate.h
+container/ring_buffer.h
 )
 list(TRANSFORM ALL_HEADER_FILES PREPEND ${CLST_ROOT})
 
