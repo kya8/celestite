@@ -3,7 +3,7 @@
 
 #include <cstddef>           // std::size_t
 #include <stdexcept>         // std::out_of_range
-#include "clst/meta/utils.h" // as_mutable
+#include "clst/meta/utils.h" // as_mut
 #include <utility>           // std::as_const
 
 // Note:
@@ -54,7 +54,7 @@ public:
     template<size_type I>
     constexpr auto& at() noexcept
     {
-        return meta::utils::asMutable(std::as_const(*this).template at<I>());
+        return meta::utils::as_mut(std::as_const(*this).template at<I>());
     }
     constexpr const auto& at(size_type i) const
     {
@@ -65,7 +65,7 @@ public:
     }
     constexpr auto& at(size_type i)
     {
-        return meta::utils::asMutable(std::as_const(*this).at(i));
+        return meta::utils::as_mut(std::as_const(*this).at(i));
     }
     // un-checked subscript access
     constexpr const auto& operator[](size_type i) const noexcept { return data_[i]; }
