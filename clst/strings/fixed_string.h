@@ -1,10 +1,10 @@
 #ifndef CLST_STRINGS_FIXED_STRING_H
 #define CLST_STRINGS_FIXED_STRING_H
 
-#include <cstddef>           // std::size_t
-#include <stdexcept>         // std::out_of_range
-#include "clst/meta/utils.h" // as_mut
-#include <utility>           // std::as_const
+#include <cstddef>               // std::size_t
+#include <stdexcept>             // std::out_of_range
+#include "clst/util/utilities.h" // as_mut
+#include <utility>               // std::as_const
 
 // Note:
 // Compile-time typing based on the CONTENTS of string data is restricted.
@@ -54,7 +54,7 @@ public:
     template<size_type I>
     constexpr auto& at() noexcept
     {
-        return meta::utils::as_mut(std::as_const(*this).template at<I>());
+        return util::as_mut(std::as_const(*this).template at<I>());
     }
     constexpr const auto& at(size_type i) const
     {
@@ -65,7 +65,7 @@ public:
     }
     constexpr auto& at(size_type i)
     {
-        return meta::utils::as_mut(std::as_const(*this).at(i));
+        return util::as_mut(std::as_const(*this).at(i));
     }
     // un-checked subscript access
     constexpr const auto& operator[](size_type i) const noexcept { return data_[i]; }

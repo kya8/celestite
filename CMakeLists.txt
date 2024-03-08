@@ -21,11 +21,11 @@ set(LIBRARY_OUTPUT_PATH    ${CMAKE_CURRENT_BINARY_DIR}/lib)
 set(CLST_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/clst/)
 
 set(ALL_HEADER_FILES
-meta/sequence.h meta/traits.h meta/meta_list.h meta/utils.h
+meta/sequence.h meta/traits.h meta/meta_list.h
 numerical/exceptions.h numerical/constants.h numerical/math.h
 strings/fixed_string.h strings/typed_string.h strings/type_name.h
 concurrency/simple_thread_pool.h concurrency/tpool.h concurrency/exceptions.h
-util/types/ints.h util/timer.h util/char_num.h util/endian.h util/endian_rw.h util/tuples.h
+util/types/ints.h util/timer.h util/char_num.h util/endian.h util/endian_rw.h util/tuples.h util/utilities.h
 common/exceptions.h
 stream/binary_stream.h stream/file_stream.h stream/lfs.h
 iter/enumerate.h
