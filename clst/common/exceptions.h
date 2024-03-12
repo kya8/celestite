@@ -11,6 +11,7 @@ public:
     virtual ~ExceptionBase() = default;
 protected:
     using runtime_error::runtime_error;
+    ExceptionBase() : runtime_error("") {}
 };
 
 class RuntimeError : public ExceptionBase {

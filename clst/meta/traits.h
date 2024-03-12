@@ -15,9 +15,9 @@ constexpr bool is_all_same_v = std::conjunction_v<std::is_same<T, Ts>...>;
 
 /* helper dependent types */
 template<typename...>
-constexpr bool always_false_v = false;
+constexpr bool false_v = false;
 template<typename...>
-constexpr bool always_true_v = true;
+constexpr bool true_v = true;
 template<typename T, typename ...>
 using always_T_with_types = T;
 template<typename T, auto ...>
