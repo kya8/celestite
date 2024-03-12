@@ -29,6 +29,13 @@ template<typename T>
 void as_mut(const T&&) = delete;
 
 
+template <typename ...Ts>
+void voidify(Ts&& ...Args)
+{
+    ((void)(Args),...);
+}
+
+
 /* Helper class, for internal use */
 template <typename T1, typename T2, typename = void>
 class CompressPair : T1 {
