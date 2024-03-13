@@ -27,7 +27,8 @@ public:
     void enqueueWithoutFuture(F&& f, Args&&... args);
 
     void waitAll() noexcept;
-    void stop() noexcept; // Signals stop. Does not wait.
+    void stop() noexcept;    // Signals stop. Does not wait.
+    void stopNow() noexcept; // also discards jobs in queue
 private:
     std::vector<std::thread> workers;
     std::deque<std::function<void()>> tasks;
@@ -102,11 +103,12 @@ auto SimpleThreadPool::enqueue(F&& f, Args&&... args)
 
     {
         std::unique_lock lk(mutex);
-        if(stop_) {
+        if (stop_) {
             throw error::ThreadPoolError("Cannot enqueue on stopped thread pool.");
         }
         if (max_jobs) {
-            cond_enqueue.wait(lk, [&] { return tasks.size() < max_jobs; });
+            cond_enqueue.wait(lk, [&] { return (tasks.size() < max_jobs) || stop_; });
+            if (stop_) throw error::ThreadPoolError("Thread pool is stopping, enqueue cancelled.");
         }
         tasks.emplace_back([task = std::move(task)]()->void { (*task)(); });
     }
@@ -119,11 +121,12 @@ void SimpleThreadPool::enqueueWithoutFuture(F&& f, Args&&... args)
 {
     {
         std::unique_lock lk(mutex);
-        if(stop_) {
+        if (stop_) {
             throw error::ThreadPoolError("Cannot enqueue on stopped thread pool.");
         }
         if (max_jobs) {
-            cond_enqueue.wait(lk, [&] { return tasks.size() < max_jobs; });
+            cond_enqueue.wait(lk, [&] { return (tasks.size() < max_jobs) || stop_; });
+            if (stop_) throw error::ThreadPoolError("Thread pool is stopping, enqueue cancelled.");
         }
         if constexpr (sizeof...(Args) == 0) {
             tasks.emplace_back(std::forward<F>(f));
@@ -151,9 +154,22 @@ inline void SimpleThreadPool::stop() noexcept
         stop_ = true;
     }
     cond.notify_all();
+    if (max_jobs) cond_enqueue.notify_all();
+}
+
+inline void SimpleThreadPool::stopNow() noexcept
+{
+    {
+        std::scoped_lock lk(mutex);
+        stop_ = true;
+        tasks.clear();
+    }
+    cond.notify_all();
+    if (max_jobs) cond_enqueue.notify_all();
 }
 
 // Returns when there is no thread working, and no task queued.
+// Does not take into account enqueuers.
 inline void SimpleThreadPool::waitAll() noexcept
 {
     std::unique_lock lk(mutex);

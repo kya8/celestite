@@ -63,6 +63,17 @@ struct ThreadPool::Impl {
             stop = true;
         }
         cond.notify_all();
+        if (max_jobs) cond_enqueue.notify_all();
+    }
+    void stopNow() noexcept
+    {
+        {
+            std::scoped_lock lk(mutex_);
+            stop = true;
+            tasks.clear();
+        }
+        cond.notify_all();
+        if (max_jobs) cond_enqueue.notify_all();
     }
 
     ~Impl() noexcept
@@ -87,7 +98,8 @@ struct ThreadPool::Impl {
                 throw error::ThreadPoolError("Cannot enqueue on stopped thread pool.");
             }
             if (max_jobs) {
-                cond_enqueue.wait(lk, [&]{return tasks.size() < max_jobs;});
+                cond_enqueue.wait(lk, [&]{ return (tasks.size() < max_jobs) || stop; });
+                if (stop) throw error::ThreadPoolError("Thread pool is stopping, enqueue cancelled.");
             }
             tasks.emplace_back(std::move(task));
         }
@@ -109,6 +121,12 @@ void
 ThreadPool::stop() noexcept
 {
     impl->stopAll();
+}
+
+void
+ThreadPool::stopNow() noexcept
+{
+    impl->stopNow();
 }
 
 void
