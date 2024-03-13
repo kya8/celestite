@@ -17,9 +17,7 @@ Everything (except macros, which are prefixed with **`CLST_`**) is placed under 
 
 # To-do
 * `clst::log`: Simple library for logging.
-* `clst::num_cast`: Numerical type cast that throws error if the arithmetic range cannot be preserved.
 * `clst::inline_vector`: Small-size-optimized vector.
 * `clst::hash`: Generic hashing functions.
 * Scope guard.
 * Type-erasing runtime-polymorphic object.
-* `clst::numerical`, `clst::algorithm`...
