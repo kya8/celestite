@@ -12,7 +12,7 @@ public:
     ThreadPool(std::size_t nb_threads, std::size_t max_jobs = 0) noexcept;
     ~ThreadPool() noexcept;
 
-    void stopAll() noexcept;
+    void stop() noexcept; // request stop
     void waitAll() noexcept;
     std::size_t getThreadCount() const noexcept;
     std::size_t getQueuedCount() const noexcept;

@@ -27,7 +27,7 @@ public:
     void enqueueWithoutFuture(F&& f, Args&&... args);
 
     void waitAll() noexcept;
-    void stopAll() noexcept;
+    void stop() noexcept; // Signals stop. Does not wait.
 private:
     std::vector<std::thread> workers;
     std::deque<std::function<void()>> tasks;
@@ -36,7 +36,7 @@ private:
     std::mutex mutex;
     std::condition_variable cond;
     std::condition_variable cond_enqueue;
-    bool stop = false;
+    bool stop_ = false;
 
     std::size_t nb_working = 0;
     std::condition_variable cond_pool;
@@ -55,8 +55,8 @@ inline SimpleThreadPool::SimpleThreadPool(std::size_t nb_threads, std::size_t ma
 
                     {
                         std::unique_lock lk(mutex);
-                        cond.wait(lk, [&]{ return stop || !tasks.empty(); });
-                        if(stop && tasks.empty())
+                        cond.wait(lk, [&]{ return stop_ || !tasks.empty(); });
+                        if(stop_ && tasks.empty())
                             return;
                         task = std::move(tasks.front());
                         tasks.pop_front();
@@ -102,7 +102,7 @@ auto SimpleThreadPool::enqueue(F&& f, Args&&... args)
 
     {
         std::unique_lock lk(mutex);
-        if(stop) {
+        if(stop_) {
             throw error::ThreadPoolError("Cannot enqueue on stopped thread pool.");
         }
         if (max_jobs) {
@@ -119,7 +119,7 @@ void SimpleThreadPool::enqueueWithoutFuture(F&& f, Args&&... args)
 {
     {
         std::unique_lock lk(mutex);
-        if(stop) {
+        if(stop_) {
             throw error::ThreadPoolError("Cannot enqueue on stopped thread pool.");
         }
         if (max_jobs) {
@@ -138,21 +138,19 @@ void SimpleThreadPool::enqueueWithoutFuture(F&& f, Args&&... args)
 
 inline SimpleThreadPool::~SimpleThreadPool() noexcept
 {
-    stopAll();
+    stop();
+    for (auto &worker : workers) {
+        worker.join();
+    }
 }
 
-// "graceful" stop
-// This'll prevent adding new task, finish the remaining task queue, and join all worker threads.
-inline void SimpleThreadPool::stopAll() noexcept
+inline void SimpleThreadPool::stop() noexcept
 {
     {
         std::scoped_lock lk(mutex);
-        stop = true;
+        stop_ = true;
     }
     cond.notify_all();
-
-    for (auto& worker : workers)
-        worker.join();
 }
 
 // Returns when there is no thread working, and no task queued.

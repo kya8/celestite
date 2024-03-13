@@ -63,13 +63,14 @@ struct ThreadPool::Impl {
             stop = true;
         }
         cond.notify_all();
-        for (auto& worker : workers)
-            worker.join();
     }
 
     ~Impl() noexcept
     {
         stopAll();
+        for (auto& worker : workers) {
+            worker.join();
+        }
     }
 
     void waitAll() noexcept
@@ -105,7 +106,7 @@ ThreadPool::ThreadPool(std::size_t nb_threads, std::size_t max_jobs) noexcept : 
 ThreadPool::~ThreadPool() = default;
 
 void
-ThreadPool::stopAll() noexcept
+ThreadPool::stop() noexcept
 {
     impl->stopAll();
 }
