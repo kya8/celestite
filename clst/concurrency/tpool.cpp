@@ -71,6 +71,9 @@ struct ThreadPool::Impl {
             std::scoped_lock lk(mutex_);
             stop = true;
             tasks.clear();
+            if (nb_working == 0) {
+                working_cond.notify_all();
+            }
         }
         cond.notify_all();
         if (max_jobs) cond_enqueue.notify_all();

@@ -163,6 +163,9 @@ inline void SimpleThreadPool::stopNow() noexcept
         std::scoped_lock lk(mutex);
         stop_ = true;
         tasks.clear();
+        if (nb_working == 0) {
+            cond_pool.notify_all();
+        }
     }
     cond.notify_all();
     if (max_jobs) cond_enqueue.notify_all();
