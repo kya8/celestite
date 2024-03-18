@@ -22,11 +22,16 @@ public:
     using ReturnType = int;
 
     template<typename F>
-    auto enqueue(F&& f) {
+    auto enqueueFuture(F&& f) {
         auto task = TaskType(std::forward<F>(f));
         auto ret = task.get_future();
         enqueue(std::move(task));
         return ret;
+    }
+
+    template<typename F>
+    void enqueue(F&& f) {
+        enqueue(TaskType(std::forward<F>(f)));
     }
 
     static ThreadPool& getDefaultPool(std::size_t N=1) noexcept;
