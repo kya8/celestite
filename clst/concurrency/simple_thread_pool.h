@@ -21,10 +21,10 @@ public:
     ~SimpleThreadPool() noexcept;
 
     template<typename F, typename... Args>
-    auto enqueue(F&& f, Args&&... args);
+    auto enqueueFuture(F&& f, Args&&... args);
 
     template<typename F, typename... Args>
-    void enqueueWithoutFuture(F&& f, Args&&... args);
+    void enqueue(F&& f, Args&&... args);
 
     void waitAll() noexcept;
     void stop() noexcept;    // Signals stop. Does not wait.
@@ -82,7 +82,7 @@ inline SimpleThreadPool::SimpleThreadPool(std::size_t nb_threads, std::size_t ma
 
 
 template<typename F, typename... Args>
-auto SimpleThreadPool::enqueue(F&& f, Args&&... args)
+auto SimpleThreadPool::enqueueFuture(F&& f, Args&&... args)
 {
     using return_type = std::invoke_result_t<F, Args...>;
 
@@ -117,7 +117,7 @@ auto SimpleThreadPool::enqueue(F&& f, Args&&... args)
 }
 
 template<typename F, typename... Args>
-void SimpleThreadPool::enqueueWithoutFuture(F&& f, Args&&... args)
+void SimpleThreadPool::enqueue(F&& f, Args&&... args)
 {
     {
         std::unique_lock lk(mutex);
