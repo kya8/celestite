@@ -3,8 +3,7 @@
 
 #include <tuple>
 
-namespace clst::iter
-{
+namespace clst::iter {
 
 template <typename Iter0, typename ...Iters>
 constexpr auto zip(Iter0 begin0, Iter0 end0, Iters ...Begins)

@@ -5,11 +5,9 @@
 #include <type_traits>
 #include <iterator>    // iterator_traits, std::begin/end
 
-namespace clst::iter
-{
+namespace clst::iter {
 
-namespace details
-{
+namespace details {
 
 template <typename T, typename = std::void_t<decltype(std::begin(std::declval<T>())), decltype(std::end(std::declval<T>()))>>
 constexpr auto enumerate(T&& t)

@@ -28,7 +28,7 @@ concurrency/simple_thread_pool.h concurrency/tpool.h concurrency/exceptions.h
 util/types/ints.h util/timer.h util/char_num.h util/endian.h util/endian_rw.h util/tuples.h util/utilities.h
 common/exceptions.h
 stream/binary_stream.h stream/file_stream.h stream/lfs.h
-iter/enumerate.h iter/zip.h
+iter/enumerate.h iter/zip.h iter/nd.h
 container/ring_buffer.h
 )
 list(TRANSFORM ALL_HEADER_FILES PREPEND ${CLST_ROOT})
@@ -85,8 +85,11 @@ add_executable(test_utils test/utils.cpp)
 target_link_libraries(test_utils PRIVATE celestite GTest::gtest_main)
 add_executable(test_num_cast test/num_cast.cpp)
 target_link_libraries(test_num_cast PRIVATE celestite GTest::gtest_main)
+add_executable(test_iter test/iter.cpp)
+target_link_libraries(test_iter PRIVATE celestite GTest::gtest_main)
 
 include(GoogleTest)
 gtest_discover_tests(test_seq)
 gtest_discover_tests(test_utils)
 gtest_discover_tests(test_num_cast)
+gtest_discover_tests(test_iter)
