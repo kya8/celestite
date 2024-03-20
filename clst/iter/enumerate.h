@@ -19,7 +19,7 @@ constexpr auto enumerate(T&& t)
         IterT it_;
 
         auto operator*() const { // This returns a temporary value, not by reference.
-            return std::pair<decltype(index_), typename IterTraits::reference>(index_, *it_);
+            return std::pair<decltype(index_), decltype(*it_)>{index_, *it_};
         }
         bool operator==(const EnumerateIterator& rhs) const {
             return it_ == rhs.it_;

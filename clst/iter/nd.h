@@ -2,7 +2,9 @@
 #define CLST_ITER_ND_H
 
 #include <array>
-#include <utility> // index_sequence
+#include <utility>     // index_sequence
+#include <type_traits> // make_signed_t
+#include <iterator>    // input_iterator_tag
 
 namespace clst::iter {
 
@@ -53,6 +55,12 @@ public:
         constexpr bool operator!=(const Iter& rhs) const noexcept {
             return !(*this == rhs);
         }
+    public: // traits
+        using difference_type = std::make_signed_t<std::size_t>;
+        using value_type      = decltype(idx_);
+        using pointer         = void;
+        using reference       = const value_type&;
+        using iterator_category = std::input_iterator_tag;
     };
 
     constexpr auto begin() const noexcept {
