@@ -26,6 +26,7 @@ numerical/exceptions.h numerical/constants.h numerical/math.h numerical/num_cast
 strings/fixed_string.h strings/typed_string.h strings/type_name.h
 concurrency/simple_thread_pool.h concurrency/tpool.h concurrency/exceptions.h
 util/types/ints.h util/timer.h util/char_num.h util/endian.h util/endian_rw.h util/tuples.h util/utilities.h
+util/throwing_ptr.h
 common/exceptions.h
 stream/binary_stream.h stream/file_stream.h stream/lfs.h
 iter/enumerate.h iter/zip.h iter/nd.h
