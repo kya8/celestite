@@ -22,21 +22,21 @@ public:
     constexpr throwing_ptr(T* ptr) noexcept : ptr_(ptr) {}
     constexpr throwing_ptr() noexcept = default;
 
-    auto& ptr() const noexcept { return ptr_; }
-    auto& ptr() noexcept { return ptr_; }
+    constexpr auto& ptr() const noexcept { return ptr_; }
+    constexpr auto& ptr() noexcept { return ptr_; }
 
-    auto& unsafeGet() { return *ptr_; }
-    auto& operator*() {
+    constexpr auto& unsafeGet() { return *ptr_; }
+    constexpr auto& operator*() {
         if (ptr_) return *ptr_;
         throw NullPtrAccess{};
     }
-    auto operator->() {
+    constexpr auto operator->() {
         if (ptr_) return ptr_;
         throw NullPtrAccess{};
     }
 
     template <typename ...Ts>
-    decltype(auto) operator()(Ts&& ...Args) {
+    constexpr decltype(auto) operator()(Ts&& ...Args) {
         if (ptr_) return ptr_(std::forward<Ts>(Args)...);
         throw NullPtrAccess{};
     }
