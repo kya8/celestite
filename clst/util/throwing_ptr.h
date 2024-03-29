@@ -34,8 +34,10 @@ public:
         if (ptr_) return ptr_;
         throw NullPtrAccess{};
     }
-    decltype(auto) operator()() {
-        if (ptr_) return ptr_();
+
+    template <typename ...Ts>
+    decltype(auto) operator()(Ts&& ...Args) {
+        if (ptr_) return ptr_(std::forward<Ts>(Args)...);
         throw NullPtrAccess{};
     }
 
