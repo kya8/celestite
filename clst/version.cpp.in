@@ -1,7 +1,16 @@
 #include "clst/version.h"
 
-const char* CELESTITE_GIT_DESC    = "@GIT_DESC@";
-const char* CELESTITE_GIT_BRANCH  = "@GIT_BRANCH@";
-const char* CELESTITE_COMMIT_DATE = "@COMMIT_DATE@";
-const char* CELESTITE_TARGET_OS   = "@CMAKE_SYSTEM_NAME@";
-const char* CELESTITE_TARGET_ARCH = "@CMAKE_SYSTEM_PROCESSOR@";
+namespace clst::version {
+
+const char* const GIT_DESC    = "@GIT_DESC@";
+const char* const GIT_BRANCH  = "@GIT_BRANCH@";
+const char* const COMMIT_DATE = "@COMMIT_DATE@";
+const char* const COMMIT_HASH = "@COMMIT_HASH@";
+const char* const TARGET_OS   = "@CMAKE_SYSTEM_NAME@";
+const char* const TARGET_ARCH = "@CMAKE_SYSTEM_PROCESSOR@";
+
+const char* const COMPILER_NAME    = "@COMPILER_NAME@";
+const char* const COMPILER_VERSION = "@COMPILER_VERSION@";
+const char* const HOST_OS          = "@CMAKE_HOST_SYSTEM_NAME@";
+
+}
