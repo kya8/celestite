@@ -9,7 +9,7 @@ protected:
     bool stop = false;     // stop w/o error
     int i = 1;
     const int argc = 0;
-    const char* const* const argv = nullptr;
+    const char* const* argv = nullptr;
 
     virtual void parseCurrent() = 0;
     virtual bool isOpt(const char*) { // is a recognized option,
@@ -36,9 +36,10 @@ protected:
 public:
     ArgParse(int argc, const char* const* argv) noexcept : argc(argc), argv(argv) {}
     bool parse() {
+        if (i >= argc) return false;
         while (i < argc) {
-            if (err_flag || stop) break;
             parseCurrent();
+            if (err_flag || stop) break;
             ++i;
         }
         return !err_flag;
