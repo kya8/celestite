@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <stdexcept>
+#include <clst/util/utilities.h> // CompressPair
 
 namespace clst {
 
@@ -22,25 +23,27 @@ public:
     using allocator_type  = Allocator;
 
     RingBuffer(size_type max, const allocator_type& alloc = allocator_type{})
-    : alloc_{alloc}, data_(alloc_traits::allocate(alloc_, max)), first_(0), count_(0), max_(max) {}
+    : alloc_and_data_{alloc, {}}, first_(0), count_(0), max_(max) {
+        alloc_and_data_.second() = alloc_traits::allocate(alloc_(), max);
+    }
 
     ~RingBuffer() noexcept {
         clear();
-        alloc_traits::deallocate(alloc_, data_, max_);
+        alloc_traits::deallocate(alloc_(), data_(), max_);
     }
 
 private:
     template<class V>
     bool push_impl(V&& value) {
         if (count_ == max_) return false;
-        alloc_traits::construct(alloc_, data_ + (first_+count_)%max_, std::forward<V>(value));
+        alloc_traits::construct(alloc_(), data_() + (first_+count_)%max_, std::forward<V>(value));
         ++count_;
         return true;
     }
     template<class V>
     void push_overwrite_impl(V&& value) {
         if (count_ == max_) pop();
-        alloc_traits::construct(alloc_, data_ + (first_+count_)%max_, std::forward<V>(value));
+        alloc_traits::construct(alloc_(), data_() + (first_+count_)%max_, std::forward<V>(value));
         ++count_;
     }
 
@@ -58,29 +61,29 @@ public:
         return push_overwrite_impl(std::move(value));
     }
     template <typename ...Args>
-    auto& emplace(Args ...args) {
+    auto& emplace(Args&& ...args) {
         if (count_ == max_) pop();
-        const auto ptr = data_ + (first_+count_) % max_;
-        alloc_traits::construct(alloc_, ptr, std::forward<Args>(args)...);
+        const auto ptr = data_() + (first_+count_) % max_;
+        alloc_traits::construct(alloc_(), ptr, std::forward<Args>(args)...);
         ++count_;
         return *ptr;
     }
 
     void pop() noexcept { // UB if empty
-        alloc_traits::destroy(alloc_, data_+first_);
+        alloc_traits::destroy(alloc_(), data_()+first_);
         first_ = (first_+1) % max_;
         --count_;
     }
     void pop_back() noexcept {
-        alloc_traits::destroy(alloc_, data_ + (first_+count_-1) % max_);
+        alloc_traits::destroy(alloc_(), data_() + (first_+count_-1) % max_);
         --count_;
     }
 
-    auto& operator[](size_type i) const noexcept {
-        return data_[(first_+i) % max_];
+    const auto& operator[](size_type i) const noexcept {
+        return data_()[(first_+i) % max_];
     }
     auto& operator[](size_type i) noexcept {
-        return data_[(first_+i) % max_];
+        return data_()[(first_+i) % max_];
     }
     auto& at(size_type i) {
         if (i >= count_) throw std::out_of_range("RingBuffer subscription out of range");
@@ -101,14 +104,15 @@ public:
 
     void clear() noexcept {
         for (auto i=first_; i<first_ + count_; ++i) {
-            alloc_traits::destroy(alloc_, &data_[i % max_]);
+            alloc_traits::destroy(alloc_(), &data_()[i % max_]);
             --count_;
         }
     }
 
 private:
-    allocator_type alloc_;
-    T* data_ = nullptr;
+    util::CompressPair<allocator_type, T*> alloc_and_data_;
+    auto& alloc_() noexcept { return alloc_and_data_.first(); }
+    auto data_() const noexcept { return alloc_and_data_.second(); }
     size_type first_;
     size_type count_;
     size_type max_;
