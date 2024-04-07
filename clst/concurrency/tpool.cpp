@@ -4,6 +4,8 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <unordered_map>
+#include <string>
 #include "exceptions.h"
 
 namespace clst::concurrency {
@@ -165,10 +167,18 @@ ThreadPool::getWorkingCount() const noexcept
 }
 
 ThreadPool&
-ThreadPool::getDefaultPool(std::size_t N) noexcept
+ThreadPool::getGlobalPool(std::string_view name, std::size_t nb_threads, std::size_t max_jobs) noexcept
 {
-    static ThreadPool tp(N);
-    return tp;
+    static std::unordered_map<std::string, ThreadPool> map;
+    static std::mutex mtx;
+
+    std::string name_string{ name };
+    {
+        std::scoped_lock lk(mtx);
+        const auto it = map.find(name_string);
+        if (it != map.cend()) return it->second;
+        return map.try_emplace(std::move(name_string), nb_threads, max_jobs).first->second;
+    }
 }
 
 } // namespace clst::concurrency

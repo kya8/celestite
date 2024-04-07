@@ -4,6 +4,7 @@
 #include <future>
 #include <memory>
 #include <cstddef>
+#include <string_view>
 
 namespace clst::concurrency {
 
@@ -34,7 +35,12 @@ public:
         enqueue(TaskType(std::forward<F>(f)));
     }
 
-    static ThreadPool& getDefaultPool(std::size_t N=1) noexcept;
+    /**
+     * Get a thread pool from a global registry, by name.
+     * 
+     * The thread pool will be constructed with given arguments if it does not exist.
+     */
+    static ThreadPool& getGlobalPool(std::string_view name, std::size_t threads = 1, std::size_t max_jobs = 0) noexcept;
 
 private:
     struct Impl;
