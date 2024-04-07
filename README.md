@@ -17,7 +17,7 @@ Everything (except macros, which are prefixed with **`CLST_`**) is placed under 
 
 # To-do
 * `clst::log`: Simple library for logging.
-* `clst::inline_vector`: Small-size-optimized vector.
+* Containers: `clst::inline_vector`, `static_vector`, ...
 * `clst::hash`: Generic hashing functions.
 * Scope guard.
 * Type-erasing runtime-polymorphic object.
