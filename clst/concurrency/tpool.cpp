@@ -120,7 +120,7 @@ ThreadPool::enqueue(TaskType&& task)
 
 ThreadPool::ThreadPool(std::size_t nb_threads, std::size_t max_jobs) noexcept : impl(std::make_unique<Impl>(nb_threads, max_jobs)) {}
 
-ThreadPool::~ThreadPool() = default;
+ThreadPool::~ThreadPool() noexcept = default;
 
 void
 ThreadPool::stop() noexcept
