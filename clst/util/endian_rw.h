@@ -10,7 +10,8 @@ namespace clst::util {
 
 namespace details {
 
-// padding bits?
+// padding bits? Not supported
+// FIXME: Bytes < sizeof(T) does not work for signed integers
 
 template<bool BE, typename T, std::size_t ...Is, std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
 inline T readEndianImpl(const unsigned char* data, std::index_sequence<Is...>) noexcept
