@@ -37,7 +37,7 @@ public:
     size_type size();
 
     template<typename ...Ts>
-    bool emplace(Ts ...Args);
+    bool emplace(Ts&& ...Args);
     bool pop(value_type& dst); // pop to destination
 
     void close();
@@ -77,7 +77,7 @@ Channel<T>::size()
 template<class T>
 template<typename ...Ts>
 inline bool
-Channel<T>::emplace(Ts ...Args)
+Channel<T>::emplace(Ts&& ...Args)
 {
     {
         std::unique_lock lk(mtx_);
