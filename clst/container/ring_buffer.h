@@ -32,6 +32,35 @@ public:
         alloc_traits::deallocate(alloc_(), data_(), max_);
     }
 
+    RingBuffer(RingBuffer&& rhs) noexcept :
+    alloc_and_data_{std::move(rhs.alloc_and_data_)}, // ensure moving the allocator. The pointer is copied.
+    first_{rhs.first_},
+    count_{rhs.count_},
+    max_{rhs.max_}
+    {
+        rhs.alloc_and_data_.second() = nullptr;
+        rhs.count_ = 0;
+        rhs.max_ = 0;
+        rhs.first_ = 0;
+        // rhs shouldn't be used anymore
+    }
+
+    RingBuffer& operator=(RingBuffer&& rhs) noexcept {
+        clear();
+        alloc_traits::deallocate(alloc_(), data_(), max_);
+
+        alloc_and_data_ = std::move(rhs.alloc_and_data_); // ensure moving the allocator
+        first_ = rhs.first_;
+        count_ = rhs.count_;
+        max_ = rhs.max_;
+        rhs.alloc_and_data_.second() = nullptr;
+        rhs.count_ = 0;
+        rhs.max_ = 0;
+        rhs.first_ = 0;
+        // rhs shouldn't be used anymore
+        return *this;
+    }
+
 private:
     template<class V>
     bool push_impl(V&& value) {
