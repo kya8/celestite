@@ -1,0 +1,10 @@
+[Bb]uild*/
+.vscode
+**/vcpkg_installed
+vcpkg
+
+CMakeSettings.json
+
+.idea
+
+**/.DS_Store
