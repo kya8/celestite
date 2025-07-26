@@ -4,29 +4,29 @@ namespace clst {
 
 BinaryFileStream::~BinaryFileStream() noexcept
 {
-    if (fp) {
-        fclose(fp);
+    if (fp_) {
+        fclose(fp_);
     }
 }
 
-BinaryFileStream::BinaryFileStream(BinaryFileStream&& rhs) noexcept : fp(rhs.fp), fsize(rhs.fsize)
+BinaryFileStream::BinaryFileStream(BinaryFileStream&& rhs) noexcept : fp_(rhs.fp_), file_size_(rhs.file_size_)
 {
-    rhs.fp = nullptr;
+    rhs.fp_ = nullptr;
 }
 
 BinaryFileStream& BinaryFileStream::operator=(BinaryFileStream&& rhs) noexcept
 {
     close();
-    fp = rhs.fp;
-    fsize = rhs.fsize;
-    rhs.fp = nullptr;
+    fp_ = rhs.fp_;
+    file_size_ = rhs.file_size_;
+    rhs.fp_ = nullptr;
     return *this;
 }
 
 bool
 BinaryFileStream::open(const char* filename, FileStreamMode mode) noexcept
 {
-    if (fp) {
+    if (fp_) {
         return false;
     }
 
@@ -55,22 +55,22 @@ BinaryFileStream::open(const char* filename, FileStreamMode mode) noexcept
 #pragma warning(push)
 #pragma warning(disable : 4996)
 #endif
-    fp = fopen(filename, mode_str);
+    fp_ = fopen(filename, mode_str);
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
 
-    if (!fp) {
+    if (!fp_) {
         return false;
     }
 
     if (mode == FileStreamMode::Read || mode == FileStreamMode::ReadExtended) {
-        if (detail::fseek64(fp, 0, SEEK_END) != 0) {
+        if (detail::fseek64(fp_, 0, SEEK_END) != 0) {
             return false;
         }
-        fsize = detail::ftell64(fp);
-        detail::fseek64(fp, 0, SEEK_SET);
-        if (fsize < 0) {
+        file_size_ = detail::ftell64(fp_);
+        detail::fseek64(fp_, 0, SEEK_SET);
+        if (file_size_ < 0) {
             return false;
         }
     }
@@ -79,24 +79,24 @@ BinaryFileStream::open(const char* filename, FileStreamMode mode) noexcept
 
 bool BinaryFileStream::close() noexcept
 {
-    if (!fp) {
+    if (!fp_) {
         return false;
     }
 
-    fclose(fp);
-    fp = nullptr;
-    fsize = -1;
+    fclose(fp_);
+    fp_ = nullptr;
+    file_size_ = -1;
     return true;
 }
 
 bool BinaryFileStream::is_open() const noexcept
 {
-    return fp != nullptr;
+    return fp_ != nullptr;
 }
 
 OffsetType BinaryFileStream::get_length() const noexcept
 {
-    return fsize;
+    return file_size_;
 }
 
 } // namespace clst
