@@ -56,9 +56,9 @@ target_compile_options(clst PUBLIC $<$<CXX_COMPILER_ID:MSVC>:/Zc:__cplusplus>)
 # Define feature test macros for Unices.
 # Some public headers might require this, but we define them separately.
 if(UNIX)
-target_compile_options(clst PRIVATE _POSIX_C_SOURCE=200809L)
+target_compile_definitions(clst PRIVATE _POSIX_C_SOURCE=200809L)
 if(APPLE)
-target_compile_options(clst PRIVATE _DARWIN_C_SOURCE=1) # Required to expose darwin-specific functions.
+target_compile_definitions(clst PRIVATE _DARWIN_C_SOURCE=1) # Required to expose darwin-specific functions.
 endif()
 endif()
 
