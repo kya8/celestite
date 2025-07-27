@@ -13,6 +13,16 @@ public:
         std::forward<F>(func_)();
     }
 
+    // ScopeGuard should not be copied.
+    ScopeGuard(const ScopeGuard&) = delete;
+    ScopeGuard& operator=(const ScopeGuard&) = delete;
+
+    // A moved-from ScopeGuard still runs the callabale at destruction,
+    // unless we track it with additional state.
+    // Disable move.
+    ScopeGuard(ScopeGuard&&) = delete;
+    ScopeGuard& operator=(ScopeGuard&&) = delete;
+
 private:
     F func_;
 };
