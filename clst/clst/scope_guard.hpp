@@ -1,6 +1,8 @@
 #ifndef CLST_SCOPE_GUARD_HPP
 #define CLST_SCOPE_GUARD_HPP
 
+#include <utility> // std::forward
+
 namespace clst {
 
 template<class F>
