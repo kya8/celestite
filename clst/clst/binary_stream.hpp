@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <type_traits>
-#include <stdexcept>
+#include "clst/error.hpp"
 #include <algorithm>
 #include <memory>        // make_unique
 #include "clst/endian.h" // detect target endian
@@ -28,8 +28,8 @@ enum class Endian {
 
 inline constexpr Endian target_endian = CLST_ENDIAN == CLST_BIG_ENDIAN ? Endian::BE : Endian::LE;
 
-struct StreamError : std::runtime_error {
-    using std::runtime_error::runtime_error;
+struct StreamError : RuntimeError {
+    using RuntimeError::RuntimeError;
 };
 
 struct StreamIoError : StreamError {

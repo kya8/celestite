@@ -1,8 +1,10 @@
 #ifndef CLST_ANY_REF_HPP
 #define CLST_ANY_REF_HPP
 
-#include <exception>
+#include "clst/error.hpp"
 #include <type_traits>
+
+// CAUTION: This is not guaranteed to work across dynlib boundaries.
 
 namespace clst {
 
@@ -13,7 +15,7 @@ inline int any_ref_helper{};
 
 } // namespace detail
 
-class BadAnyRefCast : std::exception {
+class BadAnyRefCast : public clst::Error {
 public:
     const char* what() const noexcept override {
         return "Bad AnyRef cast.";

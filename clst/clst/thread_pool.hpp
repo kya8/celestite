@@ -7,7 +7,7 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
-#include <exception>
+#include "clst/error.hpp"
 
 /**
  * TODO:
@@ -76,7 +76,7 @@ public:
     void enqueue(F&& f);
 
     /* Exception throwed when enqueuing on a stopping or stopped pool */
-    class EnqueueBlocked : public std::exception {
+    class EnqueueBlocked : public Error {
     public:
         const char* what() const noexcept override
         {

@@ -4,9 +4,15 @@
 #include <type_traits>
 #include <limits>
 #include <optional>
-#include <stdexcept>
+#include "clst/error.hpp"
 
 namespace clst {
+
+class NumCastRangeError : public Error {
+    const char* what() const noexcept override {
+        return "num_cast range error";
+    }
+};
 
 // Returns optional<To> if conversion is potentially lossy; otherwise returns To.
 template <typename To, typename From>
@@ -44,7 +50,7 @@ constexpr To num_cast_ex(From src) noexcept(is_lossless_num_cast<From, To>)
     } else {
         if (to.has_value())
             return *to;
-        throw std::range_error("num_cast range error");
+        throw NumCastRangeError{};
     }
 }
 
