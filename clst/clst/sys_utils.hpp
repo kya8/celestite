@@ -7,6 +7,8 @@
 #include <cstddef>
 #include <cstdio>
 
+//FIXME: Use SystemError exceptions
+
 namespace clst {
 
 std::optional<std::string> get_hostname() noexcept;
