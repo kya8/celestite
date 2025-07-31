@@ -4,7 +4,6 @@
 #include <string>
 #include <filesystem>
 #include <cstddef>
-#include <cstdio>
 
 //FIXME: Use SystemError exceptions
 
@@ -19,11 +18,6 @@ struct MemoryInfo {
 };
 
 MemoryInfo get_mem_info();
-
-bool is_tty(std::FILE* file) noexcept;
-
-bool is_colorterm() noexcept;
-bool is_colorterm(std::FILE* file) noexcept;
 
 } // namespace clst
 
