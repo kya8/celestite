@@ -2,7 +2,6 @@
 #define CLST_SYS_UTILS_HPP
 
 #include <string>
-#include <optional>
 #include <filesystem>
 #include <cstddef>
 #include <cstdio>
@@ -11,15 +10,15 @@
 
 namespace clst {
 
-std::optional<std::string> get_hostname() noexcept;
-std::optional<std::filesystem::path> get_proc_path() noexcept;
+std::string get_hostname();
+std::filesystem::path get_proc_path();
 
 struct MemoryInfo {
     std::size_t total; // total physical memory in bytes
     std::size_t available; // available physical memory
 };
 
-std::optional<MemoryInfo> get_mem_info() noexcept;
+MemoryInfo get_mem_info();
 
 bool is_tty(std::FILE* file) noexcept;
 
