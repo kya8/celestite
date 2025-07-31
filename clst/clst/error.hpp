@@ -83,17 +83,30 @@ private:
     detail::ArcString msg_;
 };
 
-class SystemError : public Error {
+namespace detail {
+
+// Helper class, so that error_code is constructed before the message.
+class SystemErrorBase : public RuntimeError {
+protected:
+    SystemErrorBase(std::error_code ec);
+
+    std::error_code ec_;
+};
+
+} // namespace detail
+
+class SystemError : public detail::SystemErrorBase {
 public:
     // Construct with system-specific error code value.
     SystemError(int system_error_code) noexcept;
+    SystemError(int code, const std::error_category& ecat) noexcept;
     SystemError(std::errc ec) noexcept;
 
-    const std::error_condition& get_error() const noexcept;
-    const char* what() const noexcept override;
+    const std::error_code& get_error() const noexcept;
+    //const char* what() const noexcept override;
 
-private:
-    std::error_condition ec_;
+    // Throw last system error from errno/GetLastError().
+    static void throw_last();
 };
 
 } // namespace clst

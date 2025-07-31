@@ -1,5 +1,11 @@
 #include "clst/error.hpp"
 #include <cassert>
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h> // GetLastError
+#else
+#include <errno.h>
+#endif
 
 namespace clst {
 
@@ -86,19 +92,26 @@ RuntimeError::string() const noexcept
     return msg_.string();
 }
 
-SystemError::SystemError(int system_error_code) noexcept : ec_(std::system_category().default_error_condition(system_error_code)) {}
-SystemError::SystemError(std::errc ec) noexcept : ec_(ec) {}
+detail::SystemErrorBase::SystemErrorBase(std::error_code ec) : RuntimeError(ec.message()), ec_(ec) {}
 
-const std::error_condition&
+SystemError::SystemError(int system_error_code) noexcept : SystemErrorBase(std::error_code{system_error_code, std::system_category()}) {}
+SystemError::SystemError(int code, const std::error_category& ecat) noexcept : SystemErrorBase(std::error_code{code, ecat}) {}
+SystemError::SystemError(std::errc ec) noexcept : SystemErrorBase(std::make_error_code(ec)) {}
+
+const std::error_code&
 SystemError::get_error() const noexcept
 {
     return ec_;
 }
 
-const char*
-SystemError::what() const noexcept
+void
+SystemError::throw_last()
 {
-    return ec_.message().c_str();
+#ifdef _WIN32
+    throw SystemError(GetLastError(), std::system_category());
+#else
+    throw SystemError(errno, std::system_category());
+#endif
 }
 
 } // namespace clst
