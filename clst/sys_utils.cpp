@@ -47,9 +47,10 @@ get_hostname()
     return buf;
 #elif defined(IS_POSIX)
     char buf[HOST_NAME_MAX + 2] {0};
-    if (gethostname(buf, std::size(buf) - 1) == 0)
-        return buf;
-    SystemError::throw_last();
+    if (gethostname(buf, std::size(buf) - 1) != 0) {
+        SystemError::throw_last();
+    }
+    return buf;
 #endif
 }
 
