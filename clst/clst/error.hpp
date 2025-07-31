@@ -33,7 +33,7 @@ public:
     ArcString(const std::string& str);
     ArcString(std::string&& str) noexcept;
     ~ArcString() noexcept;
-    // Copy
+    // Copy (noexcept!)
     ArcString(const ArcString& rhs) noexcept;
     ArcString& operator=(const ArcString& rhs) noexcept;
     // Move
@@ -106,7 +106,7 @@ public:
     //const char* what() const noexcept override;
 
     // Throw last system error from errno/GetLastError().
-    static void throw_last();
+    [[noreturn]] static void throw_last();
 };
 
 } // namespace clst
