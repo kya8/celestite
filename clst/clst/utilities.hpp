@@ -35,6 +35,18 @@ void voidify(Ts&& ...Args)
     ((void)(Args),...);
 }
 
+template<typename ...Ts>
+struct Overloaded : Ts... {
+    using Ts::operator()...;
+};
+template<typename ...Ts>
+Overloaded(Ts...) -> Overloaded<Ts...>;
+
+// priority tag
+template<int P>
+struct PriorityTag : PriorityTag<P - 1> {}; // Tag<N> IS A (more specialized version of) Tag<N-1>
+template<>
+struct PriorityTag<0> {};
 
 /* Helper EBO class */
 template <typename T1, typename T2, typename = void>
