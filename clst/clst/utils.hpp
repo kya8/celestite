@@ -1,5 +1,5 @@
-#ifndef CLST_UTILITIES_HPP
-#define CLST_UTILITIES_HPP
+#ifndef CLST_UTILS_HPP
+#define CLST_UTILS_HPP
 
 #include <type_traits>
 #include <utility>
@@ -79,4 +79,4 @@ public:
 
 } // namespace clst
 
-#endif // CLST_UTILITIES_HPP
+#endif // CLST_UTILS_HPP

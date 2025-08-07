@@ -3,7 +3,9 @@
 
 #include <memory>
 #include <stdexcept>
-#include "clst/utilities.hpp" // CompressPair
+#include "clst/utils.hpp" // CompressPair
+
+//FIXME: allocator
 
 namespace clst {
 
