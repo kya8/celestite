@@ -3,7 +3,9 @@
 
 // Wrappers for 64-bit fseek/ftell
 
-#ifndef _WIN32 // Assume POSIX
+#ifdef _WIN32
+#include <stdint.h>
+#else // Assume POSIX
 #define _FILE_OFFSET_BITS 64
 #ifndef _POSIX_C_SOURCE
 #define _POSIX_C_SOURCE 200809L
@@ -17,7 +19,7 @@
 namespace clst::detail {
 
 #ifdef _WIN32
-inline auto fseek64(FILE* stream, __int64 offset, int whence) {
+inline auto fseek64(FILE* stream, int64_t offset, int whence) {
     return _fseeki64(stream, offset, whence);
 }
 inline auto ftell64(FILE* stream) {
@@ -37,10 +39,10 @@ inline auto ftell64(FILE* stream) {
 #else // C code
 
 #ifdef _WIN32
-inline int clst_fseek64(FILE* stream, __int64 offset, int whence) {
+inline int clst_fseek64(FILE* stream, int64_t offset, int whence) {
     return _fseeki64(stream, offset, whence);
 }
-inline __int64 clst_ftell64(FILE* stream) {
+inline int64_t clst_ftell64(FILE* stream) {
     return _ftelli64(stream);
 }
 #else
