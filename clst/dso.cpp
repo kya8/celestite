@@ -75,7 +75,8 @@ void* Dso::get_sym(const char* name) const noexcept
         return nullptr;
     }
 #ifdef _WIN32
-    return GetProcAddress(static_cast<HMODULE>(handle_), name);
+    // Casting from function pointer to void* is not standard C/C++.
+    return reinterpret_cast<void*>(GetProcAddress(static_cast<HMODULE>(handle_), name));
 #else
     // dlsym can return null as a valid address, but we treat it as an error.
     return dlsym(handle_, name);
