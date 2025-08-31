@@ -65,10 +65,11 @@ public:
     template<typename ...Ts>
     bool emplace(Ts&& ...Args)
     {
+        using Lock = std::conditional_t<Bounded, std::unique_lock<decltype(mtx_)>, std::lock_guard<decltype(mtx_)>>;
         if constexpr (Sc) {
             bool should_notify; // For single-consumer, we only need to notify the consumer when filling an empty queue.
             {
-                std::unique_lock lk(mtx_);
+                Lock lk(mtx_);
                 if constexpr (Bounded) {
                     this->cond_emplace_.wait(lk, [&] { return Container::size() < this->max_ || closed_; });
                 }
@@ -84,7 +85,7 @@ public:
             return true;
         } else {
             {
-                std::unique_lock lk(mtx_);
+                Lock lk(mtx_);
                 if constexpr (Bounded) {
                     this->cond_emplace_.wait(lk, [&] { return Container::size() < this->max_ || closed_; });
                 }
