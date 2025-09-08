@@ -29,8 +29,13 @@ public:
             return nullptr;
         }
         const auto p = cur_ + pad;
-        cur_ += pad + size;
+        cur_ = p + size;
         return p;
+    }
+
+    std::ptrdiff_t capacity() const noexcept
+    {
+        return end_ - cur_;
     }
     
     //void* align(std::ptrdiff_t alignment) noexcept;
