@@ -10,7 +10,7 @@ struct alignas(16) TestAlign {};
 int arena(int, char*[])
 {
     static constexpr int len = 32;
-    static alignas(16) unsigned char buf[len];
+    alignas(16) static unsigned char buf[len];
     clst::Arena arena(buf, len);
     CLST_ASSERT(arena.capacity() == len);
 
@@ -19,4 +19,6 @@ int arena(int, char*[])
     CLST_ASSERT(arena.allocate<TestAlign>() != nullptr);
     CLST_ASSERT(arena.capacity() == 0);
     CLST_ASSERT(arena.allocate(1, 1) == nullptr);
+    
+    return 0;
 }
