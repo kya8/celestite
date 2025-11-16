@@ -1,7 +1,7 @@
 My own collection of C++ goodies.
 
 # License
-The MIT License
+This repository is licensed under the MIT License. Refer to [LICENSE](LICENSE).
 
 # Name
 __Celestite__: A mineral consisting of _strontium sulfate_ ($SrSO_4$).
