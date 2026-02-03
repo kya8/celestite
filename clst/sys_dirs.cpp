@@ -163,7 +163,7 @@ fs::path get_dir(const char* env, fs::path fallback)
 {
     const auto env_val = getenv(env);
     const fs::path dir = env_val ? env_val : std::move(fallback);
-    if (fs::is_directory(dir)) {
+    if (!fs::is_directory(dir)) {
         fs::create_directories(dir);
     }
     return dir;
