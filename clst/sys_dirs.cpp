@@ -157,6 +157,65 @@ fs::path tmp_dir()
 // Unices that aren't macOS, e.g. GNU/Linux & BSDs.
 // Use XDG Base dirs: https://specifications.freedesktop.org/basedir/latest/
 
+
+fs::path config_dir()
+{
+    return xdg::config_dir();
+}
+
+fs::path cache_dir()
+{
+    return xdg::cache_dir();
+}
+
+fs::path data_dir()
+{
+    return xdg::data_dir();
+}
+
+fs::path state_dir()
+{
+    return xdg::state_dir();
+}
+
+fs::path tmp_dir()
+{
+    const auto env = getenv("TMPDIR");
+    if (env) {
+        return env;
+    }
+    return "/tmp";
+}
+
+#endif
+
+fs::path home_dir()
+{
+#ifdef IS_WIN32
+    return get_known_folder(FOLDERID_Profile);
+#else
+    // Check $HOME first
+    const auto env = getenv("HOME");
+    if (env && env[0]) {
+        return env;
+    }
+    struct passwd pwd;
+    struct passwd* result;
+    static constexpr auto bufsize = 4096; // Should be more than enough. Or, sysconf(_SC_GETPW_R_SIZE_MAX)
+    const auto buf = std::make_unique<char[]>(bufsize);
+    const auto ret = getpwuid_r(getuid(), &pwd, buf.get(), bufsize, &result);
+    if (result == NULL) {
+        if (ret == 0) {
+            throw std::runtime_error("User entry not found");
+        }
+        throw std::system_error(ret, std::system_category());
+    }
+    return pwd.pw_dir;
+#endif
+}
+
+namespace xdg {
+
 namespace {
 
 fs::path get_dir(const char* env, fs::path fallback)
@@ -191,40 +250,6 @@ fs::path state_dir()
     return get_dir("XDG_STATE_HOME", home_dir() / ".local/share");
 }
 
-fs::path tmp_dir()
-{
-    const auto env = getenv("TMPDIR");
-    if (env) {
-        return env;
-    }
-    return "/tmp";
-}
-
-#endif
-
-fs::path home_dir()
-{
-#ifdef IS_WIN32
-    return get_known_folder(FOLDERID_Profile);
-#else
-    // Check $HOME first
-    const auto env = getenv("HOME");
-    if (env && env[0]) {
-        return env;
-    }
-    struct passwd pwd;
-    struct passwd* result;
-    static constexpr auto bufsize = 4096; // Should be more than enough. Or, sysconf(_SC_GETPW_R_SIZE_MAX)
-    const auto buf = std::make_unique<char[]>(bufsize);
-    const auto ret = getpwuid_r(getuid(), &pwd, buf.get(), bufsize, &result);
-    if (result == NULL) {
-        if (ret == 0) {
-            throw std::runtime_error("User entry not found");
-        } 
-        throw std::system_error(ret, std::system_category());
-    }
-    return pwd.pw_dir;
-#endif
-}
+} // namespace xdg
 
 } // namespace sys
