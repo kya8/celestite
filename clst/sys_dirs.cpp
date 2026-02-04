@@ -32,6 +32,7 @@
 #endif
 
 #include <system_error>
+#include <utility>
 #include "clst/scope_guard.hpp"
 
 namespace clst {
@@ -218,10 +219,11 @@ namespace xdg {
 
 namespace {
 
-fs::path get_dir(const char* env, fs::path fallback)
+template<typename T>
+fs::path get_dir(const char* env, T&& fallback)
 {
     const auto env_val = getenv(env);
-    const fs::path dir = env_val ? env_val : std::move(fallback);
+    const fs::path dir = env_val ? env_val : std::forward<T>(fallback);
     if (!fs::is_directory(dir)) {
         fs::create_directories(dir);
     }
@@ -232,22 +234,22 @@ fs::path get_dir(const char* env, fs::path fallback)
 
 fs::path config_dir()
 {
-    return get_dir("XDG_CONFIG_HOME", home_dir() / ".config");
+    return get_dir("XDG_CONFIG_HOME", home_dir() /= ".config");
 }
 
 fs::path cache_dir()
 {
-    return get_dir("XDG_CACHE_HOME", home_dir() / ".cache");
+    return get_dir("XDG_CACHE_HOME", home_dir() /= ".cache");
 }
 
 fs::path data_dir()
 {
-    return get_dir("XDG_DATA_HOME", home_dir() / ".local/share");
+    return get_dir("XDG_DATA_HOME", home_dir() /= ".local/share");
 }
 
 fs::path state_dir()
 {
-    return get_dir("XDG_STATE_HOME", home_dir() / ".local/share");
+    return get_dir("XDG_STATE_HOME", home_dir() /= ".local/share");
 }
 
 } // namespace xdg
