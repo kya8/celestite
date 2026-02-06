@@ -27,11 +27,8 @@ private:
     F func_;
 };
 
-// CTAD guides
-// Store a reference for lvalue argument.
-template<typename T>
-ScopeGuard(T&) -> ScopeGuard<T&>;
-// For rvalue argument we want to move it in.
+// CTAD guide
+// rvalue -> value(move in), lvalue -> lvalue ref
 template<typename T>
 ScopeGuard(T&&) -> ScopeGuard<T>;
 
