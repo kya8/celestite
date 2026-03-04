@@ -16,10 +16,10 @@ public:
     Dso& operator=(Dso&&) noexcept;
 
     bool open(const char* name) noexcept;
-    bool is_open() noexcept;
+    bool is_open() const noexcept;
     bool close() noexcept;
     void* get_sym(const char* name) const noexcept;
-    auto get_handle() noexcept {
+    auto get_handle() const noexcept {
         return handle_;
     }
 

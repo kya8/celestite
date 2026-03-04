@@ -52,7 +52,7 @@ bool Dso::open(const char* name) noexcept
     return handle_ != nullptr;
 }
 
-bool Dso::is_open() noexcept
+bool Dso::is_open() const noexcept
 {
     return handle_ != nullptr;
 }
