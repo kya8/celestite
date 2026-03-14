@@ -123,4 +123,16 @@
 #define CLST_RESTRICT __restrict__
 #endif
 
+// thread_local
+#if CLST_C23 || CLST_CPP11
+#define CLST_THREAD_LOCAL thread_local
+#elif CLST_C11
+#define CLST_THREAD_LOCAL _Thread_local
+#elif defined(_MSC_VER)
+#define CLST_THREAD_LOCAL __declspec(thread)
+#else
+#define CLST_THREAD_LOCAL __thread
+#endif
+
+
 #endif // CLST_BUILTINS_H
