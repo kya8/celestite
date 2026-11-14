@@ -2,7 +2,7 @@
 #define BINARY_FILE_STREAM_HPP_E7292879_5125_4AAA_9BE7_DF944BD6B10A
 
 #include "BinaryStream.hpp"
-#include "lfs.h"  // 64-bit ftell/fseek
+#include "lfs.hpp"  // 64-bit ftell/fseek
 #include <cassert>
 
 namespace slate {
