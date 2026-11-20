@@ -1,5 +1,5 @@
-#ifndef MP4_HPP_DE4096F4_7B89_48AC_80FE_63F4719F37EF
-#define MP4_HPP_DE4096F4_7B89_48AC_80FE_63F4719F37EF
+#ifndef SLATE_MP4_MP4_HPP
+#define SLATE_MP4_MP4_HPP
 
 #include "slate/streams/BinaryFileStream.hpp"
 #include <stdexcept>
@@ -62,4 +62,4 @@ public:
 } // namespace slate::mp4
 
 
-#endif /* MP4_HPP_DE4096F4_7B89_48AC_80FE_63F4719F37EF */
+#endif /* SLATE_MP4_MP4_HPP */

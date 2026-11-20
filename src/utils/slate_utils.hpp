@@ -1,5 +1,5 @@
-#ifndef SLATE_UTILS_HPP_C2199F0F_5C62_4323_A0B2_7A23C939CC49
-#define SLATE_UTILS_HPP_C2199F0F_5C62_4323_A0B2_7A23C939CC49
+#ifndef SLATE_UTILS_SLATE_UTILS_HPP
+#define SLATE_UTILS_SLATE_UTILS_HPP
 
 namespace slate {
 
@@ -10,4 +10,4 @@ int main_mp4join(int argc, char** argv) noexcept;
 
 } // namespace slate
 
-#endif /* SLATE_UTILS_HPP_C2199F0F_5C62_4323_A0B2_7A23C939CC49 */
+#endif /* SLATE_UTILS_SLATE_UTILS_HPP */

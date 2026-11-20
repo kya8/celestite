@@ -1,5 +1,5 @@
-#ifndef FOURCC_HPP_B41F7CAE_9564_47EB_B9E3_0A8F343DE21D
-#define FOURCC_HPP_B41F7CAE_9564_47EB_B9E3_0A8F343DE21D
+#ifndef SLATE_FOURCC_HPP
+#define SLATE_FOURCC_HPP
 
 #include <cstdint>
 #include <cstddef>
@@ -74,4 +74,4 @@ consteval FourCC operator""_fc(const char* s, std::size_t len)
 } // namespace slate
 
 
-#endif /* FOURCC_HPP_B41F7CAE_9564_47EB_B9E3_0A8F343DE21D */
+#endif /* SLATE_FOURCC_HPP */

@@ -1,5 +1,5 @@
-#ifndef VALUE_TYPES_HPP_D396FF12_6599_4802_B17A_B0D3746A6FCB
-#define VALUE_TYPES_HPP_D396FF12_6599_4802_B17A_B0D3746A6FCB
+#ifndef SLATE_VALUE_TYPES_HPP
+#define SLATE_VALUE_TYPES_HPP
 
 #include <vector>
 #include <array>
@@ -52,4 +52,4 @@ using GpsDataVec = std::vector<GpsRecord>;
 
 } // namespace slate::types
 
-#endif /* VALUE_TYPES_HPP_D396FF12_6599_4802_B17A_B0D3746A6FCB */
+#endif /* SLATE_VALUE_TYPES_HPP */

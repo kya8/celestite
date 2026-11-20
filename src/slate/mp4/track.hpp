@@ -1,5 +1,5 @@
-#ifndef TRACK_HPP_B8710831_6B74_4E3B_AB2A_A407EC7E9F81
-#define TRACK_HPP_B8710831_6B74_4E3B_AB2A_A407EC7E9F81
+#ifndef SLATE_MP4_TRACK_HPP
+#define SLATE_MP4_TRACK_HPP
 
 #include "mp4.hpp"
 #include <vector>
@@ -60,4 +60,4 @@ private:
 
 } /* namespace slate::mp4 */
 
-#endif /* TRACK_HPP_B8710831_6B74_4E3B_AB2A_A407EC7E9F81 */
+#endif /* SLATE_MP4_TRACK_HPP */

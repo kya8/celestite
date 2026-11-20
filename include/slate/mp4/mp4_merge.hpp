@@ -1,5 +1,5 @@
-#ifndef MP4_MERGE_HPP_C328A04A_1474_4AEB_A13A_C2AFFF31804A
-#define MP4_MERGE_HPP_C328A04A_1474_4AEB_A13A_C2AFFF31804A
+#ifndef SLATE_MP4_MP4_MERGE_HPP
+#define SLATE_MP4_MP4_MERGE_HPP
 
 #include "slate/export.h"
 #include <memory> // unique_ptr
@@ -59,4 +59,4 @@ private:
 
 } // namespace slate::mp4
 
-#endif /* MP4_MERGE_HPP_C328A04A_1474_4AEB_A13A_C2AFFF31804A */
+#endif /* SLATE_MP4_MP4_MERGE_HPP */

@@ -1,5 +1,5 @@
-#ifndef FS_HPP_F48C75B0_9514_46CA_AA60_26A71726682A
-#define FS_HPP_F48C75B0_9514_46CA_AA60_26A71726682A
+#ifndef SLATE_COMMON_FS_HPP
+#define SLATE_COMMON_FS_HPP
 
 #include <filesystem>
 #include <vector>
@@ -14,4 +14,4 @@ std::vector<std::filesystem::path> get_most_occuring_extension_files(const std::
 
 } //namespace util
 
-#endif /* FS_HPP_F48C75B0_9514_46CA_AA60_26A71726682A */
+#endif /* SLATE_COMMON_FS_HPP */

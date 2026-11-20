@@ -1,5 +1,5 @@
-#ifndef DETECTORS_HPP_A7EBA89B_4DF5_4E6E_AF1B_50B9D248BEAB
-#define DETECTORS_HPP_A7EBA89B_4DF5_4E6E_AF1B_50B9D248BEAB
+#ifndef SLATE_DETECTORS_HPP
+#define SLATE_DETECTORS_HPP
 
 #include <slate/camera_info.hpp>
 #include "slate/mp4/mp4.hpp"
@@ -17,4 +17,4 @@ detect_insta360(mp4::Mp4Stream& file, CameraInfo& info, bool metadata_only = fal
 } // namespace slate
 
 
-#endif /* DETECTORS_HPP_A7EBA89B_4DF5_4E6E_AF1B_50B9D248BEAB */
+#endif /* SLATE_DETECTORS_HPP */

@@ -1,5 +1,5 @@
-#ifndef CAMERA_INFO_HPP_C29E77D3_4AC8_45FB_BF9C_74643D794575
-#define CAMERA_INFO_HPP_C29E77D3_4AC8_45FB_BF9C_74643D794575
+#ifndef SLATE_CAMERA_INFO_HPP
+#define SLATE_CAMERA_INFO_HPP
 
 #include <string_view>
 #include <string>
@@ -25,4 +25,4 @@ struct CameraInfo {
 
 } // namespace slate
 
-#endif /* CAMERA_INFO_HPP_C29E77D3_4AC8_45FB_BF9C_74643D794575 */
+#endif /* SLATE_CAMERA_INFO_HPP */

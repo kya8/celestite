@@ -1,5 +1,5 @@
-#ifndef SYS_UTILS_HPP_B7FAA969_37E6_45B4_89B2_1373F9395991
-#define SYS_UTILS_HPP_B7FAA969_37E6_45B4_89B2_1373F9395991
+#ifndef SLATE_COMMON_SYS_UTILS_HPP
+#define SLATE_COMMON_SYS_UTILS_HPP
 
 #include <string>
 #include <optional>
@@ -26,4 +26,4 @@ bool is_colorterm(std::FILE* file) noexcept;
 
 } // namespace sys
 
-#endif /* SYS_UTILS_HPP_B7FAA969_37E6_45B4_89B2_1373F9395991 */
+#endif /* SLATE_COMMON_SYS_UTILS_HPP */

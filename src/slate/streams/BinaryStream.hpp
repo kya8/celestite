@@ -1,5 +1,5 @@
-#ifndef BINARY_STREAM_HPP_AD884129_07F3_4D4A_A1B9_ECDD347E6022
-#define BINARY_STREAM_HPP_AD884129_07F3_4D4A_A1B9_ECDD347E6022
+#ifndef SLATE_STREAMS_BINARY_STREAM_HPP
+#define SLATE_STREAMS_BINARY_STREAM_HPP
 
 #include <cstdint>
 #include <cstddef>
@@ -236,4 +236,4 @@ class RWStreamMixin : public ReadStreamMixin, public WriteStreamMixin {};
 
 } // namespace slate
 
-#endif /* BINARY_STREAM_HPP_AD884129_07F3_4D4A_A1B9_ECDD347E6022 */
+#endif /* SLATE_STREAMS_BINARY_STREAM_HPP */

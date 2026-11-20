@@ -1,5 +1,5 @@
-#ifndef VARMAP_HPP_E5E2828D_2421_4F81_B079_A3D97AF2F7C2
-#define VARMAP_HPP_E5E2828D_2421_4F81_B079_A3D97AF2F7C2
+#ifndef SLATE_VARMAP_HPP
+#define SLATE_VARMAP_HPP
 
 #include "id.hpp"
 #include "detail/variant.hpp"
@@ -315,4 +315,4 @@ SLATE_EXPORT std::ostream& operator<<(std::ostream& os, const Value& val);
 
 } // namespace slate
 
-#endif /* VARMAP_HPP_E5E2828D_2421_4F81_B079_A3D97AF2F7C2 */
+#endif /* SLATE_VARMAP_HPP */

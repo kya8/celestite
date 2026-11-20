@@ -1,5 +1,5 @@
-#ifndef TUPLE_UTILS_HPP_CBE4287E_C976_4BA5_B5CA_37C0BB287E17
-#define TUPLE_UTILS_HPP_CBE4287E_C976_4BA5_B5CA_37C0BB287E17
+#ifndef SLATE_COMMON_TUPLE_UTILS_HPP
+#define SLATE_COMMON_TUPLE_UTILS_HPP
 
 #include <utility>
 #include <tuple>
@@ -55,4 +55,4 @@ constexpr auto iter_to_tuple(IterT begin)
 } // namespace util
 
 
-#endif /* TUPLE_UTILS_HPP_CBE4287E_C976_4BA5_B5CA_37C0BB287E17 */
+#endif /* SLATE_COMMON_TUPLE_UTILS_HPP */

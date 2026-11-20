@@ -1,5 +1,5 @@
-#ifndef VARIANT_HPP_C3629885_4A17_4B79_8B27_89249A6D97B6
-#define VARIANT_HPP_C3629885_4A17_4B79_8B27_89249A6D97B6
+#ifndef SLATE_DETAIL_VARIANT_HPP
+#define SLATE_DETAIL_VARIANT_HPP
 
 #include <variant>
 #include <type_traits>
@@ -62,4 +62,4 @@ requires (std::is_same_v<T, Ts> || ...)
 
 } // namespace slate::detail
 
-#endif /* VARIANT_HPP_C3629885_4A17_4B79_8B27_89249A6D97B6 */
+#endif /* SLATE_DETAIL_VARIANT_HPP */

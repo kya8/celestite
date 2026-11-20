@@ -1,5 +1,5 @@
-#ifndef TERMCOLOR_HPP_A73B5B43_1C3B_42A8_B5BC_9AED37F243C5
-#define TERMCOLOR_HPP_A73B5B43_1C3B_42A8_B5BC_9AED37F243C5
+#ifndef SLATE_COMMON_TERMCOLOR_HPP
+#define SLATE_COMMON_TERMCOLOR_HPP
 
 #include <array>
 #include <string_view>
@@ -340,4 +340,4 @@ struct std::formatter<tc::ConditionalOutputWrapper<T, F, Impl...>> : std::format
 #endif
 
 
-#endif /* TERMCOLOR_HPP_A73B5B43_1C3B_42A8_B5BC_9AED37F243C5 */
+#endif /* SLATE_COMMON_TERMCOLOR_HPP */

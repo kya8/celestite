@@ -1,5 +1,5 @@
-#ifndef MEMORY_CURSOR_HPP_D2C9EA7C_C6F9_47E4_A269_9397DBD06FEB
-#define MEMORY_CURSOR_HPP_D2C9EA7C_C6F9_47E4_A269_9397DBD06FEB
+#ifndef SLATE_STREAMS_MEMORY_CURSOR_HPP
+#define SLATE_STREAMS_MEMORY_CURSOR_HPP
 
 #include "BinaryStream.hpp"
 #include <cstring> // memcpy
@@ -106,4 +106,4 @@ Cursor(void*, std::ptrdiff_t) -> Cursor<true>;
 
 } // namespace slate
 
-#endif /* MEMORY_CURSOR_HPP_D2C9EA7C_C6F9_47E4_A269_9397DBD06FEB */
+#endif /* SLATE_STREAMS_MEMORY_CURSOR_HPP */

@@ -1,5 +1,5 @@
-#ifndef RANGE_HPP_E0844149_6509_46D8_923A_EB4F29F0E6C6
-#define RANGE_HPP_E0844149_6509_46D8_923A_EB4F29F0E6C6
+#ifndef SLATE_COMMON_RANGE_HPP
+#define SLATE_COMMON_RANGE_HPP
 
 #include <type_traits>
 #include <cstddef>  // ptrdiff_t
@@ -68,4 +68,4 @@ auto make_index(const T& container) noexcept(noexcept(std::size(container)))
 }
 
 
-#endif /* RANGE_HPP_E0844149_6509_46D8_923A_EB4F29F0E6C6 */
+#endif /* SLATE_COMMON_RANGE_HPP */

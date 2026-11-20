@@ -1,5 +1,5 @@
-#ifndef INSTA360_TF_HPP_BDD826EF_DD54_498E_879E_3CA75D80320D
-#define INSTA360_TF_HPP_BDD826EF_DD54_498E_879E_3CA75D80320D
+#ifndef SLATE_EXTRA_INSTA360_TF_HPP
+#define SLATE_EXTRA_INSTA360_TF_HPP
 
 #include <Eigen/Core>
 #include <slate/fwd.hpp>
@@ -19,4 +19,4 @@ SLATE_EXPORT [[nodiscard]] std::optional<Eigen::Vector3d> get_T01(const double* 
 } // namespace slate::insta360
 
 
-#endif /* INSTA360_TF_HPP_BDD826EF_DD54_498E_879E_3CA75D80320D */
+#endif /* SLATE_EXTRA_INSTA360_TF_HPP */

@@ -1,5 +1,5 @@
-#ifndef DETECT_HPP_BCD5DE1F_5C62_460F_95D1_D0A5D9B18F61
-#define DETECT_HPP_BCD5DE1F_5C62_460F_95D1_D0A5D9B18F61
+#ifndef SLATE_DETECT_HPP
+#define SLATE_DETECT_HPP
 
 #include "camera_info.hpp"
 #include <optional>
@@ -12,4 +12,4 @@ SLATE_EXPORT [[nodiscard]] std::optional<CameraInfo> detect(const char* video_fi
 } // namespace slate
 
 
-#endif /* DETECT_HPP_BCD5DE1F_5C62_460F_95D1_D0A5D9B18F61 */
+#endif /* SLATE_DETECT_HPP */

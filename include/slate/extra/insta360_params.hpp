@@ -1,5 +1,5 @@
-#ifndef INSTA360_PARAMS_HPP_B632C79B_4329_4935_8CD6_E130AB7F0CF5
-#define INSTA360_PARAMS_HPP_B632C79B_4329_4935_8CD6_E130AB7F0CF5
+#ifndef SLATE_EXTRA_INSTA360_PARAMS_HPP
+#define SLATE_EXTRA_INSTA360_PARAMS_HPP
 
 #include <array>
 #include <cmath>
@@ -49,4 +49,4 @@ SLATE_EXPORT bool get_params(const CameraInfo& info, Params& out, bool with_crop
 
 } // namespace slate::insta360
 
-#endif /* INSTA360_PARAMS_HPP_B632C79B_4329_4935_8CD6_E130AB7F0CF5 */
+#endif /* SLATE_EXTRA_INSTA360_PARAMS_HPP */

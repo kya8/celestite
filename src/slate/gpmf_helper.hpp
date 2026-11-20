@@ -1,5 +1,5 @@
-#ifndef GPMF_HELPER_HPP_C6C4D424_779A_4F4C_93C7_BA4B6CCCCF08
-#define GPMF_HELPER_HPP_C6C4D424_779A_4F4C_93C7_BA4B6CCCCF08
+#ifndef SLATE_GPMF_HELPER_HPP
+#define SLATE_GPMF_HELPER_HPP
 
 #include <GPMF_parser.h>
 #include <cstddef>
@@ -78,6 +78,6 @@ private:
     bool init_ok_ = false;
 };
 
-#endif /* GPMF_HELPER_HPP_C6C4D424_779A_4F4C_93C7_BA4B6CCCCF08 */
+#endif /* SLATE_GPMF_HELPER_HPP */
 
 } // namespace slate

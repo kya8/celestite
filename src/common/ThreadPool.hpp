@@ -1,5 +1,5 @@
-#ifndef THREAD_POOL_HPP_FE77F15C_8C2D_411A_8D40_2AA77362894A
-#define THREAD_POOL_HPP_FE77F15C_8C2D_411A_8D40_2AA77362894A
+#ifndef SLATE_COMMON_THREAD_POOL_HPP
+#define SLATE_COMMON_THREAD_POOL_HPP
 
 #include "ThreadPoolFwd.hpp"
 #include <vector>
@@ -241,4 +241,4 @@ ThreadPool(const F&, std::size_t, std::size_t) -> ThreadPool<true>;
 template<std::invocable F>
 ThreadPool(const F&, std::size_t) -> ThreadPool<false>;
 
-#endif /* THREAD_POOL_HPP_FE77F15C_8C2D_411A_8D40_2AA77362894A */
+#endif /* SLATE_COMMON_THREAD_POOL_HPP */

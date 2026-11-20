@@ -1,5 +1,5 @@
-#ifndef LFS_HPP_DE54052E_2D19_4622_990D_9653B2C8C00B
-#define LFS_HPP_DE54052E_2D19_4622_990D_9653B2C8C00B
+#ifndef SLATE_STREAMS_LFS_HPP
+#define SLATE_STREAMS_LFS_HPP
 
 #ifndef _WIN32 // Assume POSIX
 #define _FILE_OFFSET_BITS 64
@@ -26,4 +26,4 @@ inline auto& ftell64 = ftello;
 
 } // namespace slate::detail
 
-#endif /* LFS_HPP_DE54052E_2D19_4622_990D_9653B2C8C00B */
+#endif /* SLATE_STREAMS_LFS_HPP */

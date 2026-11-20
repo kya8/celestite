@@ -1,5 +1,5 @@
-#ifndef ID_HPP_EF3DF2F3_2860_455D_BABE_4EFBCDBA265B
-#define ID_HPP_EF3DF2F3_2860_455D_BABE_4EFBCDBA265B
+#ifndef SLATE_ID_HPP
+#define SLATE_ID_HPP
 
 #include "slate/export.h"
 #include <string_view>
@@ -59,4 +59,4 @@ SLATE_EXPORT [[nodiscard]] std::string_view to_string(KeyId id) noexcept;
 
 } // namespace slate
 
-#endif /* ID_HPP_EF3DF2F3_2860_455D_BABE_4EFBCDBA265B */
+#endif /* SLATE_ID_HPP */

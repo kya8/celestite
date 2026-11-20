@@ -1,5 +1,5 @@
-#ifndef TEST_H_F7C82FF2_3F80_48A1_9E15_7D2A4DDB7FE8
-#define TEST_H_F7C82FF2_3F80_48A1_9E15_7D2A4DDB7FE8
+#ifndef SLATE_TEST_H
+#define SLATE_TEST_H
 
 // Macros for tests
 
@@ -47,4 +47,4 @@
 
 #endif // __cplusplus
 
-#endif /* TEST_H_F7C82FF2_3F80_48A1_9E15_7D2A4DDB7FE8 */
+#endif /* SLATE_TEST_H */

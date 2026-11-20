@@ -1,5 +1,5 @@
-#ifndef FILTER_HPP_C71069FC_8ED2_494F_B0EA_0D78850BA28A
-#define FILTER_HPP_C71069FC_8ED2_494F_B0EA_0D78850BA28A
+#ifndef SLATE_UTILS_FILTER_HPP
+#define SLATE_UTILS_FILTER_HPP
 
 #include <optional>
 #include <algorithm>
@@ -53,4 +53,4 @@ auto get_outliers(It first, It last, double m = 5.0) -> std::vector<It>
     return result;
 }
 
-#endif /* FILTER_HPP_C71069FC_8ED2_494F_B0EA_0D78850BA28A */
+#endif /* SLATE_UTILS_FILTER_HPP */

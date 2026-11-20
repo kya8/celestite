@@ -1,5 +1,5 @@
-#ifndef EXPORT_H_C5022F93_F5C3_46F7_875C_6925DBFFE1A4
-#define EXPORT_H_C5022F93_F5C3_46F7_875C_6925DBFFE1A4
+#ifndef SLATE_EXPORT_H
+#define SLATE_EXPORT_H
 
 // API export macros
 // define SLATE_SOURCE when building this library
@@ -19,4 +19,4 @@
     #define SLATE_EXPORT
 #endif
 
-#endif /* EXPORT_H_C5022F93_F5C3_46F7_875C_6925DBFFE1A4 */
+#endif /* SLATE_EXPORT_H */

@@ -1,5 +1,5 @@
-#ifndef SLATE_BUILTINS_H
-#define SLATE_BUILTINS_H
+#ifndef SLATE_COMMON_BUILTINS_H
+#define SLATE_COMMON_BUILTINS_H
 
 // Portable macros for attributes & compiler built-ins.
 // Prefer standard options.
@@ -123,4 +123,4 @@
 #define SLATE_RESTRICT __restrict__
 #endif
 
-#endif /* SLATE_BUILTINS_H */
+#endif /* SLATE_COMMON_BUILTINS_H */

@@ -1,5 +1,5 @@
-#ifndef PROTO_UTIL_HPP_CBF9CC20_A76A_4277_9419_91F680660295
-#define PROTO_UTIL_HPP_CBF9CC20_A76A_4277_9419_91F680660295
+#ifndef SLATE_PROTO_UTIL_HPP
+#define SLATE_PROTO_UTIL_HPP
 
 #include <google/protobuf/message.h>
 #include <slate/varmap.hpp>
@@ -13,4 +13,4 @@ void insert_metadata(VarMap& map, const google::protobuf::Message& message);
 
 } // namespace slate
 
-#endif /* PROTO_UTIL_HPP_CBF9CC20_A76A_4277_9419_91F680660295 */
+#endif /* SLATE_PROTO_UTIL_HPP */
