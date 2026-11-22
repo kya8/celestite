@@ -9,6 +9,7 @@
 
 #include "common/sys_utils.hpp"
 #include "common/time_utils.hpp"
+#include "common/string_utils.hpp"
 #include <slate/log.hpp>
 
 #ifdef SLATE_LOG_MULTI_SINK
@@ -148,6 +149,29 @@ std::string_view label(Level lvl) noexcept
     const auto& label = lut_levels[std::to_underlying(lvl) - SLATE_LOG_LEVEL_TRACE].label;
     // Remove the brackets
     return {label.begin() + 1, label.end() - 1};
+}
+
+std::optional<Level> find_level(std::string_view name) noexcept
+{
+    using enum Level;
+    /*--*/ if (match(name, "trace")) {
+        return trace;
+    } else if (match(name, "debug")) {
+        return debug;
+    } else if (match(name, "info")) {
+        return info;
+    } else if (match(name, "notice")) {
+        return notice;
+    } else if (match(name, "warn", "warning")) {
+        return warn;
+    } else if (match(name, "error", "err")) {
+        return error;
+    } else if (match(name, "crit", "critical")) {
+        return crit;
+    } else if (match(name, "off", "disable")) {
+        return off;
+    }
+    return std::nullopt;
 }
 
 #ifdef SLATE_LOG_MULTI_SINK

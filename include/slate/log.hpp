@@ -8,6 +8,7 @@
 #include <string_view>
 #include <utility>
 #include <concepts>
+#include <optional>
 #ifdef SLATE_LOG_MULTI_SINK
 #error "Not implemented yet."
 #include <span>
@@ -42,14 +43,21 @@ enum class Level {
     warn   = SLATE_LOG_LEVEL_WARN,
     error  = SLATE_LOG_LEVEL_ERROR,
     crit   = SLATE_LOG_LEVEL_CRIT,
-    off    = SLATE_LOG_LEVEL_OFF,
+    off    = SLATE_LOG_LEVEL_OFF,  // Settable (to turn off a sink), but should not be used in log calls.
+    // END = -1  // Sentinel value
 };
 
 /**
  * Get a text label of the specified log level
  * @pre `lvl` must be one of the defined log levels, including `off'.
  */
-std::string_view label(Level lvl) noexcept;
+SLATE_EXPORT std::string_view label(Level lvl) noexcept;
+
+/**
+ * Find a log level according to its name.
+ * @param[in] name Lower-case name of a log level.
+ */
+SLATE_EXPORT std::optional<Level> find_level(std::string_view name) noexcept;
 
 inline constexpr bool is_log_level(Level lv) noexcept {
     return lv >= Level::trace && lv < Level::off;
