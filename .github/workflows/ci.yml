@@ -111,7 +111,8 @@ jobs:
       working-directory: ${{ steps.strings.outputs.build_dir }}
       run: |
         cmake --build .
-        cpack
+        cmake --install . --prefix ./install-root
+       #cpack
 
     - name: Run tests
       working-directory: ${{ steps.strings.outputs.build_dir }}
@@ -119,7 +120,7 @@ jobs:
 
     - uses: actions/upload-artifact@v7
       with:
-        name: slate-${{ github.sha }}-${{ runner.os }}_${{ runner.arch }}
+        name: slate-${{ github.sha }}-${{ runner.os }}_${{ runner.arch }}-${{ matrix.build_type }}
         path: |
-          ${{ steps.strings.outputs.build_dir }}/slate-*.tar.*
-        archive: false
+          ${{ steps.strings.outputs.build_dir }}/install-root/*
+        # archive: false
