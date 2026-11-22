@@ -1,6 +1,6 @@
 #include "time_utils.hpp"
-#include <memory>
 #include <stdexcept>
+#include <ctime>
 
 int
 util::localtime(const std::time_t& t, std::tm& tm) noexcept
@@ -25,11 +25,13 @@ util::gmtime(const std::time_t& t, std::tm& tm) noexcept
 std::string
 util::format_time(const std::tm &tm, const char* fmt)
 {
-    for (int len = 64; len < 1024; len *= 2) {
-        const auto buf = std::make_unique_for_overwrite<char[]>(len);
-        const auto size = std::strftime(buf.get(), 64, fmt, &tm);
-        if (size > 0) {
-            return {buf.get(), size};
+    for (int len = 32; len < 1024; len *= 2) {
+        std::string ret;
+        ret.resize_and_overwrite(len, [&](char* p, auto count) {
+            return std::strftime(p, count, fmt, &tm); // returns 0 if space isn't enough
+        });
+        if (!ret.empty()) {
+            return ret;
         }
     }
     throw std::length_error("String is too long");
