@@ -1,5 +1,6 @@
 #include "detectors.hpp"
 #include "proto_util.hpp"
+#include "slate/log.hpp"
 #include <cstdint>
 #include <vector>
 #include "insta360_metadata.pb.h"
@@ -75,12 +76,15 @@ detect_insta360(Mp4Stream& file, CameraInfo& info, bool metadata_only) noexcept 
     unsigned char buf_magic[magic_len] {0};
     file.read(buf_magic, magic_len);
     if (std::memcmp(buf_magic, magic, magic_len) != 0) {
+        SLATE_LOG_DEBUG("Insta360 detection failed: magic mismatch.");
         return false;
     }
+    SLATE_LOG_DEBUG("Insta360 insv magic matched.");
 
     file.seek(-magic_len-4-4, SeekFrom::End);
     std::uint32_t extra_size, _version;
     file.read_nums<Endian::LE>(extra_size, _version);
+    SLATE_LOG_DEBUG("insv extra data size: {}, version: {}", extra_size, _version);
     info.vendor = CameraVendor::Insta360;
 
     // keep some info for re-use
@@ -107,7 +111,11 @@ detect_insta360(Mp4Stream& file, CameraInfo& info, bool metadata_only) noexcept 
             if (id > 0) offsets[(RecordType)id] = {offset, size};
         }
 
-        if (offsets.empty()) return false;
+        if (offsets.empty()) {
+            SLATE_LOG_ERROR("insv offset record is empty.");
+            return false;
+        }
+        SLATE_LOG_DEBUG("Found insv offset records.");
     }
 
     auto iter_offsets = offsets.cbegin();
@@ -135,6 +143,7 @@ detect_insta360(Mp4Stream& file, CameraInfo& info, bool metadata_only) noexcept 
         }
 
         if (id == RecordType::Metadata && format == RecordFormat::Protobuf) { // Normally, this should be the first record.
+            SLATE_LOG_DEBUG("Found insta360 metadata record. size={}", size);
             std::vector<unsigned char> buf(size);
             file.read(buf.data(), buf.size());
             Insta360Metadata metadata;
@@ -157,10 +166,12 @@ detect_insta360(Mp4Stream& file, CameraInfo& info, bool metadata_only) noexcept 
                 const auto normalize_metadata = [&map, &map_normalized](const KeyType auto& key, KeyId key_normalized) {
                     const auto it = map.find(key);
                     if (it == map.cend()) {
+                        SLATE_LOG_DEBUG("'{}' was not found in metadata records, cannot normalize to '{}'", key /* should be converted */, to_string(key_normalized));
                         return false;
                     }
                     map_normalized[key_normalized] = std::move(it->second);
                     map.erase(it);
+                    SLATE_LOG_DEBUG("metadata record '{}' was normalized to well-known key '{}'", key /* should be converted */, to_string(key_normalized));
                     return true;
                 };
                 normalize_metadata("camera_type",         KeyId::CameraModel);
@@ -294,6 +305,7 @@ detect_insta360(Mp4Stream& file, CameraInfo& info, bool metadata_only) noexcept 
 
     return true;
 } catch (const StreamError&) {
+    SLATE_LOG_ERROR("Error while reading mp4 file stream!");
     return false;
 }
 
