@@ -44,7 +44,10 @@ add_compile_options("$<IF:$<CXX_COMPILER_ID:MSVC>,/W4,-Wall;-Wextra;-pedantic>")
 # MSVC conformance mode
 add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/permissive->)
 # Enable updated __cplusplus macro for MSVC
-add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/Zc:__cplusplus>)
+add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/Zc:__cplusplus>")
+# Enum type conformance options for MSVC. Can break ABI/API!!!
+# add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/Zc:enumEncoding>") # enum NTTP mangling
+# add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/Zc:enumTypes>")    # enum underlying type
 
 # Do not export symbols by default
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)

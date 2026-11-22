@@ -7,6 +7,7 @@
 #include <format>
 #include <string_view>
 #include <utility>
+#include <concepts>
 #ifdef SLATE_LOG_MULTI_SINK
 #error "Not implemented yet."
 #include <span>
@@ -135,8 +136,9 @@ void write(Level lvl, std::format_string<Args...> fmt, Args&& ...args) {
     write<CheckLevel>(lvl, std::format(fmt, std::forward<Args>(args)...));
 }
 
-template<Level Lv, bool CheckLevel = true, std::formattable<char> ...Args>
-requires (IsLogLevel<Lv> && sizeof...(Args) > 0)
+template<auto Lv, bool CheckLevel = true, std::formattable<char> ...Args>
+// The `auto Lv` is here to workaround a MSVC bug where it erroneously chooses this overload.
+requires (std::same_as<decltype(Lv), Level> && IsLogLevel<Lv> && sizeof...(Args) > 0)
 void write(std::format_string<Args...> fmt, Args&& ...args) {
     write<Lv, CheckLevel>(std::format(fmt, std::forward<Args>(args)...));
 }

@@ -89,7 +89,7 @@ constexpr auto const& sink = g_sink;
  * Given `0 <= n < 1000`, write the 3 decimals of `n` with left-padded zeros ("%03d") to output buffer.
  * @pre 0 <= n < 1000, and [out, out + 3) is a valid range.
 */
-void write_dec3(unsigned n, char* out) noexcept
+constexpr void write_dec3(unsigned n, char* out) noexcept
 {
     // A LUT mapping [0, 100) to 2 decimal digits.
     // 200 bytes in size.
@@ -265,7 +265,7 @@ void write(Level lvl, std::string_view message) noexcept
 
 template<Level Lv, bool CheckLevel>
 requires IsLogLevel<Lv>
-SLATE_EXPORT void write(std::string_view message) noexcept
+void write(std::string_view message) noexcept
 {
     if constexpr (CheckLevel) {
         if (Lv < sink.level) {
