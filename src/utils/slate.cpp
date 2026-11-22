@@ -1,18 +1,20 @@
-#include "slate_utils.hpp"
 #include <slate/detect.hpp>
+#include <slate/log.hpp>
+#include "slate_utils.hpp"
+#include "version.hpp"
+#include "sys_utils.hpp"
+#include "string_utils.hpp"
+#include "timer.hpp"
 #include <print>
 #include <fstream>
-#include "timer.hpp"
 #include <cstring>
 #include <string>
 #include <vector>
 #include <fstream>
 #include <cstdlib>
-#include "version.hpp"
-#include "sys_utils.hpp"
-#include "string_utils.hpp"
 #include <iostream>
 #include <ranges>
+#include <algorithm>
 
 using namespace slate;
 
@@ -94,7 +96,16 @@ const Value* find_value(const GroupedVarMap& gmap, std::string_view prop) noexce
     return val;
 }
 
-constexpr int max_verbosity = 4;
+using log::Level;
+
+constexpr auto min_log_level = std::to_underlying(Level::trace);
+constexpr auto max_log_level = std::to_underlying(Level::warn);
+constexpr auto max_verbosity = max_log_level - min_log_level;
+
+// Default log level when verbosity=0 is `warning'.
+constexpr Level to_level(int verbosity) noexcept {
+    return static_cast<Level>(std::clamp(max_log_level - verbosity, min_log_level, max_log_level));
+}
 
 } // namespace
 
@@ -174,30 +185,35 @@ int slate::main_slate(int argc, char** argv) noexcept
         return 0;
     }
 
+    const Level log_level = to_level(verbosity);
+    log::get_sink().level = log_level;
+    SLATE_LOG_INFO("Verbosity = {}. Log level set to {}", verbosity, log::label(log_level));
+
     util::Timer timer;
     const bool stdout_is_colorterm = sys::is_colorterm(stdout);
-    bool first = true;
     bool has_error = false;
-    for (const auto& file : files) {
+    for (auto ix = 0uz; ix < files.size(); ++ix) {
+        const auto& file = files[ix];
+        SLATE_LOG_DEBUG("Parsing file {}...", file);
         timer.tic();
         const auto info = detect(file, metadata_only);
         const auto time_detect = timer.toc();
+        SLATE_LOG_INFO("File {} parsed in {:.3f} ms", file, time_detect * 1e3);
 
-        if (!first)
+        if (ix > 0)
             std::putchar('\n');
-        first = false;
-        if (verbosity > 0 || !info) {
-            if (stdout_is_colorterm)
-                std::print("\033[1;32m{}\033[0m", file);
-            else
-                std::print("{}", file);
+        if (stdout_is_colorterm) {
+            const std::string_view status_code = info? "\033[1;48;5;28m" : "\033[1;41m";
+            std::print("{}{} \033[22;48;5;230;38;5;235m{}\033[0m:", status_code, ix+1, file);
+        } else {
+            std::print("{}: {}:", ix+1, file);
         }
         if (!info) {
-            std::print(": Failed to extract data, or input file is invalid.\n");
+            std::print(" Failed to extract data, or input file is invalid.\n");
             has_error = true;
+        } else {
+            std::putchar('\n');
         }
-        else if (verbosity > 0)
-            std::print(": Done in {:.3f} ms\n", time_detect * 1e3);
 
         if (info) {
             if (show_property) {
