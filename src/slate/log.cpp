@@ -53,6 +53,11 @@ constexpr int level_len_max = std::ranges::max(lut_levels
                                           return l.label.size();
                                       }));
 
+[[maybe_unused]] bool is_settable_level(Level level) noexcept
+{
+    return level >= Level::trace && level <= Level::off;
+}
+
 // use unlocked stdio if available
 #ifdef _WIN32
     #define my_putc _putc_nolock
@@ -80,19 +85,15 @@ Sink g_sink { .file=stdout, .level = Level::info, .color = sys::is_tty(stdout) }
 constexpr auto const& sink = g_sink;
 #endif
 
-[[maybe_unused]] bool is_settable_level(Level level) noexcept
-{
-    return level >= Level::trace && level <= Level::off;
-}
-
 /**
  * Given `0 <= n < 1000`, write the 3 decimals of `n` with left-padded zeros ("%03d") to output buffer.
  * @pre 0 <= n < 1000, and [out, out + 3) is a valid range.
 */
 void write_dec3(unsigned n, char* out) noexcept
 {
-    static constexpr auto lut2 = [] {
-        // A 200B LUT of 2 digits
+    // A LUT mapping [0, 100) to 2 decimal digits.
+    // 200 bytes in size.
+    static constexpr auto lut2 = []{
         std::array<char, 100 * 2> a{};
         for (int i = 0; i < 100; ++i) {
             a[i * 2]     = char('0' + i / 10);
@@ -140,6 +141,14 @@ void write_msg_line(std::FILE* file, char* leader_start, std::size_t leader_len,
 }
 
 } // namespace
+
+std::string_view label(Level lvl) noexcept
+{
+    assert(is_settable_level(lvl));
+    const auto& label = lut_levels[std::to_underlying(lvl) - SLATE_LOG_LEVEL_TRACE].label;
+    // Remove the brackets
+    return {label.begin() + 1, label.end() - 1};
+}
 
 #ifdef SLATE_LOG_MULTI_SINK
 
@@ -228,11 +237,14 @@ Sink& get_sink() noexcept
     return g_sink;
 }
 
+template<bool CheckLevel>
 void write(Level lvl, std::string_view message) noexcept
 {
     assert(is_log_level(lvl));
-    if (lvl < sink.level) {
-        return;
+    if constexpr (CheckLevel) {
+        if (lvl < sink.level) {
+            return;
+        }
     }
     static constexpr auto bufsize = time_maxlen + level_len_max + 1; // 1 for trailing space
     char buf_leader[bufsize];
@@ -251,12 +263,14 @@ void write(Level lvl, std::string_view message) noexcept
     write_msg_line(sink.file, buf_leader, p - buf_leader, message);
 }
 
-template<Level Lv>
+template<Level Lv, bool CheckLevel>
 requires IsLogLevel<Lv>
 SLATE_EXPORT void write(std::string_view message) noexcept
 {
-    if (Lv < sink.level) {
-        return;
+    if constexpr (CheckLevel) {
+        if (Lv < sink.level) {
+            return;
+        }
     }
     constexpr const auto& lvl_info = lut_levels[std::to_underlying(Lv) - std::to_underlying(Level::trace)];
     static constexpr auto bufsize = time_maxlen + lvl_info.style.size() + lvl_info.label.size() + reset_style.size()+ 1;
@@ -274,13 +288,23 @@ SLATE_EXPORT void write(std::string_view message) noexcept
     write_msg_line(sink.file, buf_leader, p - buf_leader, message);
 }
 
-template void write<Level::trace>(std::string_view);
-template void write<Level::debug>(std::string_view);
-template void write<Level::info>(std::string_view);
-template void write<Level::notice>(std::string_view);
-template void write<Level::warn>(std::string_view);
-template void write<Level::error>(std::string_view);
-template void write<Level::crit>(std::string_view);
+template void write<true>(Level, std::string_view);
+template void write<false>(Level, std::string_view);
+
+template void write<Level::trace,  true>(std::string_view);
+template void write<Level::debug,  true>(std::string_view);
+template void write<Level::info,   true>(std::string_view);
+template void write<Level::notice, true>(std::string_view);
+template void write<Level::warn,   true>(std::string_view);
+template void write<Level::error,  true>(std::string_view);
+template void write<Level::crit,   true>(std::string_view);
+template void write<Level::trace,  false>(std::string_view);
+template void write<Level::debug,  false>(std::string_view);
+template void write<Level::info,   false>(std::string_view);
+template void write<Level::notice, false>(std::string_view);
+template void write<Level::warn,   false>(std::string_view);
+template void write<Level::error,  false>(std::string_view);
+template void write<Level::crit,   false>(std::string_view);
 
 #endif
 

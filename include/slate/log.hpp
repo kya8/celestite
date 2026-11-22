@@ -44,6 +44,12 @@ enum class Level {
     off    = SLATE_LOG_LEVEL_OFF,
 };
 
+/**
+ * Get a text label of the specified log level
+ * @pre `lvl` must be one of the defined log levels, including `off'.
+ */
+std::string_view label(Level lvl) noexcept;
+
 inline constexpr bool is_log_level(Level lv) noexcept {
     return lv >= Level::trace && lv < Level::off;
 }
@@ -99,36 +105,47 @@ namespace detail {
  */
 SLATE_EXPORT [[nodiscard]] Sink& get_sink() noexcept;
 
+namespace detail {
+
+[[nodiscard]] inline bool check_level(Level lvl) noexcept {
+    return lvl >= get_sink().level;
+}
+
+} // namespace detail
+
 #endif
 
 /**
  * Writes a decorated message and a newline to sink(s) that currently accept the level.
  * The logger serializes concurrent writes.
  * @pre is_log_level(lvl)
+ * @tparam CheckLevel Whether to check for current sink level.
+           Note this is meant for internal use.
  */
+template<bool CheckLevel = true>
 SLATE_EXPORT void write(Level lvl, std::string_view message) noexcept;
 
-template<Level Lv>
+template<Level Lv, bool CheckLevel = true>
 requires IsLogLevel<Lv>
 SLATE_EXPORT void write(std::string_view message) noexcept;
 
-template<std::formattable<char> ...Args>
+template<bool CheckLevel = true, std::formattable<char> ...Args>
 requires (sizeof...(Args) > 0)
 void write(Level lvl, std::format_string<Args...> fmt, Args&& ...args) {
-    write(lvl, std::format(fmt, std::forward<Args>(args)...));
+    write<CheckLevel>(lvl, std::format(fmt, std::forward<Args>(args)...));
 }
 
-template<Level Lv, std::formattable<char> ...Args>
+template<Level Lv, bool CheckLevel = true, std::formattable<char> ...Args>
 requires (IsLogLevel<Lv> && sizeof...(Args) > 0)
 void write(std::format_string<Args...> fmt, Args&& ...args) {
-    write<Lv>(std::format(fmt, std::forward<Args>(args)...));
+    write<Lv, CheckLevel>(std::format(fmt, std::forward<Args>(args)...));
 }
 
 } // namespace slate::log
 
 #ifdef SLATE_LOG_MULTI_SINK
 // Checks the runtime threshold before evaluating arguments.
-// Consuming code should not depend on the side effects of argument evaluation,
+// Consuming code should be careful with depending on the side effects of argument evaluation,
 // as they can be ignored if the runtime log level forbids `LVL`.
 #define SLATE_DETAIL_LOG(LVL, ...)                                         \
     do {                                                                   \
@@ -137,9 +154,12 @@ void write(std::format_string<Args...> fmt, Args&& ...args) {
         }                                                                  \
     } while (0)
 #else
-#define SLATE_DETAIL_LOG(LVL, ...)                                  \
-    do {                                                            \
-        ::slate::log::write(::slate::log::Level::LVL, __VA_ARGS__); \
+// If the requested log level is rejected by sink, arguments will not be evaluated.
+#define SLATE_DETAIL_LOG(LVL, ...)                                             \
+    do {                                                                       \
+        if (::slate::log::detail::check_level(::slate::log::Level::LVL)) {     \
+            ::slate::log::write<false>(::slate::log::Level::LVL, __VA_ARGS__); \
+        }                                                                      \
     } while (0)
 #endif
 
