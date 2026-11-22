@@ -111,7 +111,7 @@ jobs:
       working-directory: ${{ steps.strings.outputs.build_dir }}
       run: |
         cmake --build .
-        cmake --install . --prefix ./install-root
+        cmake --install . --prefix ./install-root --strip
        #cpack
 
     - name: Run tests
