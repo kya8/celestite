@@ -1,4 +1,4 @@
-file(GLOB_RECURSE test_sources RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS *.cpp)
+file(GLOB_RECURSE test_sources RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS [a-zA-Z]*.cpp)
 create_test_sourcelist(driver_sources slate_tests_driver.cpp ${test_sources})
 
 add_executable(test_slate ${driver_sources})
