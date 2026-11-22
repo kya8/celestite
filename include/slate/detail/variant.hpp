@@ -48,7 +48,7 @@ requires (std::is_same_v<T, Ts> || ...)
     if (const auto p = std::get_if<T>(&var)) {
         return *p;
     } else {
-        assert(("Type mismatch in get_unsafe()", false));
+        assert("Type mismatch in get_unsafe()" && false);
         std::unreachable();
     }
 }
