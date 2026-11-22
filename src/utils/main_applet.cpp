@@ -45,7 +45,7 @@ constexpr auto applets_list = [] -> std::string_view {
         return std::pair{arr, end - arr.begin()};
     }();
     // static_assert(pair.second == bufsize); // bufsize is exact!
-    return {pair.first.begin(), pair.second};
+    return {pair.first.data(), pair.second};
 }();
 
 } // namespace
