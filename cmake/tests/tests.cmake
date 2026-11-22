@@ -15,3 +15,9 @@ function(test_and_set file define)
 endfunction()
 
 test_and_set(${CMAKE_CURRENT_LIST_DIR}/move_only_function.cpp HAVE_MOVE_ONLY_FUNCTION)
+
+# Check for symbols
+# include(CheckSymbolExists)
+
+# set(CMAKE_REQUIRED_DEFINITIONS -D _POSIX_C_SOURCE=200809L)
+# check_symbol_exists(fwrite_unlocked "stdio.h" HAVE_FWRITE_UNLOCKED)
