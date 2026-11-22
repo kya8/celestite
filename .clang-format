@@ -8,6 +8,7 @@ TabWidth: 4
 AccessModifierOffset: -4
 IndentCaseLabels: false
 NamespaceIndentation: None
+IndentPPDirectives: Leave
 
 SpaceAfterTemplateKeyword: false
 
