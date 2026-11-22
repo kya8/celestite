@@ -188,6 +188,9 @@ int slate::main_slate(int argc, char** argv) noexcept
     const Level log_level = to_level(verbosity);
     log::get_sink().level = log_level;
     SLATE_LOG_INFO("Verbosity = {}. Log level set to {}", verbosity, log::label(log_level));
+    if (metadata_only) {
+        SLATE_LOG_NOTICE("Reading global metadata only. Streaming sensor data might be skipped.");
+    }
 
     util::Timer timer;
     const bool stdout_is_colorterm = sys::is_colorterm(stdout);
@@ -198,10 +201,11 @@ int slate::main_slate(int argc, char** argv) noexcept
         timer.tic();
         const auto info = detect(file, metadata_only);
         const auto time_detect = timer.toc();
-        SLATE_LOG_INFO("File {} parsed in {:.3f} ms", file, time_detect * 1e3);
-
-        if (ix > 0)
+        if (ix > 0) {
             std::putchar('\n');
+        }
+
+        SLATE_LOG_INFO("File {} parsed in {:.3f} ms", file, time_detect * 1e3);
         if (stdout_is_colorterm) {
             const std::string_view status_code = info? "\033[1;48;5;28m" : "\033[1;41m";
             std::print("{}{} \033[22;48;5;230;38;5;235m{}\033[0m:", status_code, ix+1, file);
