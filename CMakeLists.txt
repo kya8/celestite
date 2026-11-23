@@ -61,6 +61,10 @@ add_compile_definitions(_DARWIN_C_SOURCE=1)
 endif()
 endif()
 
+# compile-time log level
+set(SLATE_LOG_LEVEL DEBUG CACHE STRING "Compile-time log level for slate.")
+add_compile_definitions("SLATE_LOG_LEVEL=SLATE_LOG_LEVEL_${SLATE_LOG_LEVEL}")
+
 #-------- Version & Build info
 include(cmake/git-version.cmake)
 
