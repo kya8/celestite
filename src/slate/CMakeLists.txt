@@ -12,6 +12,7 @@ file(GLOB_RECURSE slate_sources CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/*.proto
 )
+list(FILTER slate_sources EXCLUDE REGEX "(^|/)_")
 
 add_library(slate ${slate_sources})
 add_library(slate::slate ALIAS slate)

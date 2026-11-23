@@ -1,6 +1,7 @@
 find_package(Boost CONFIG REQUIRED) # circular_buffer, header-only
 
 file(GLOB_RECURSE slate_common_sources CONFIGURE_DEPENDS *.h *.hpp *.cpp *.c)
+list(FILTER slate_common_sources EXCLUDE REGEX "(^|/)_")
 
 add_library(slate_common STATIC ${slate_common_sources} ${GENERATED_SOURCE_DIR}/version.cpp)
 add_library(slate::common ALIAS slate_common)

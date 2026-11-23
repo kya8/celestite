@@ -1,6 +1,6 @@
 #include <slate/detect.hpp>
 #include <slate/log.hpp>
-#include "slate_utils.hpp"
+#include "applets.hpp"
 #include "version.hpp"
 #include "sys_utils.hpp"
 #include "string_utils.hpp"

@@ -5,30 +5,30 @@ find_package(Eigen3 CONFIG REQUIRED)
 # set(MULTI_CALL_NAMES calibrator insta360_normalize mp4join)
 # set(MAIN_NAME slate) # This is arbitary
 
-file(GLOB_RECURSE slate_utils_sources CONFIGURE_DEPENDS
+file(GLOB_RECURSE slate_applets_source CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
 )
-LIST(REMOVE_ITEM slate_utils_sources ${CMAKE_CURRENT_SOURCE_DIR}/main_multicall.cpp)
+list(FILTER slate_applets_source EXCLUDE REGEX "(^|/)_")
 
-add_executable(slate_utils ${slate_utils_sources})
+add_executable(slate_applets ${slate_applets_source})
 
-set_target_properties(slate_utils PROPERTIES
+set_target_properties(slate_applets PROPERTIES
     OUTPUT_NAME slate
     RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin
 )
 
-target_link_libraries(slate_utils
+target_link_libraries(slate_applets
 PRIVATE
     slate::common slate::slate ${OpenCV_LIBS} Eigen3::Eigen Threads::Threads
 )
 
-install(TARGETS slate_utils)
+install(TARGETS slate_applets)
 
 # Create a symlink for bin/slate in the build tree
-add_custom_command(TARGET slate_utils POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E create_symlink bin/"$<TARGET_FILE_NAME:slate_utils>" "$<TARGET_FILE_NAME:slate_utils>"
+add_custom_command(TARGET slate_applets POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E create_symlink bin/"$<TARGET_FILE_NAME:slate_applets>" "$<TARGET_FILE_NAME:slate_applets>"
     WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
 )
 
