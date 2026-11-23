@@ -1,5 +1,5 @@
-#ifndef SLATE_UTILS_FILTER_HPP
-#define SLATE_UTILS_FILTER_HPP
+#ifndef SLATE_APPS_FILTER_HPP
+#define SLATE_APPS_FILTER_HPP
 
 #include <optional>
 #include <algorithm>
@@ -53,4 +53,4 @@ auto get_outliers(It first, It last, double m = 5.0) -> std::vector<It>
     return result;
 }
 
-#endif /* SLATE_UTILS_FILTER_HPP */
+#endif /* SLATE_APPS_FILTER_HPP */

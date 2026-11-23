@@ -1,5 +1,5 @@
-#ifndef SLATE_UTILS_APPLETS_HPP
-#define SLATE_UTILS_APPLETS_HPP
+#ifndef SLATE_APPS_APPLETS_HPP
+#define SLATE_APPS_APPLETS_HPP
 
 #include <string_view>
 
@@ -30,4 +30,4 @@ inline int g_verbosity = 0;
 
 } // namespace slate
 
-#endif /* SLATE_UTILS_APPLETS_HPP */
+#endif /* SLATE_APPS_APPLETS_HPP */

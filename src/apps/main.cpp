@@ -95,13 +95,14 @@ R"^^({0}: Unified command-line applets dispatcher.
 Usage: {0} [GLOBAL_OPTIONS...] <applet> [APPLET_OPTIONS...]
 
 Available applets: {1}.
-Hint: A partial prefix can be used as the applet name if it is unique.
 
 Global options:
   -l, --list-applets  Print all available applets, one per line
   -v, --verbose       Increase verbosity level; can be repeated; also applies to applets
   -h, --help          Show help message
   -V, --version       Display version information
+
+Hint: A partial prefix can be used to select the applet, provided that the prefix is unique.
 )^^",
     base_name, applets_list);
 }
@@ -150,7 +151,7 @@ int main(int argc, char** argv)
     }
     if (hit != 1) {
         if (hit > 1) {
-            std::println(stderr, "Ambiguous applet name: \"{}\"", arg1);
+            std::println(stderr, "Ambiguous applet name prefix: \"{}\"", arg1);
         } else {
             std::println(stderr, "Unknown applet name: \"{}\"", arg1);
         }
