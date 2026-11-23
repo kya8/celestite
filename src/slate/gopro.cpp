@@ -5,8 +5,8 @@
 #include "slate/mp4/track.hpp"
 #include "slate/log.hpp"
 #include "helper_templates.hpp"
-#include <algorithm>
 #include <range.hpp>
+#include <algorithm>
 
 using namespace slate::mp4;
 
@@ -15,6 +15,7 @@ namespace slate {
 bool
 detect_gopro(Mp4Stream& file, CameraInfo& info, bool metadata_only) noexcept
 {
+    SLATE_LOG_INFO("Probing GoPro...");
     { // global GPMF
     std::vector<unsigned char> data;
     try {
@@ -26,7 +27,8 @@ detect_gopro(Mp4Stream& file, CameraInfo& info, bool metadata_only) noexcept
 
         data = file.read_atom_data(atom);
     } catch (const StreamError&) {
-        SLATE_LOG_ERROR("Error while reading MP4 file stream");
+        // TODO: IO error and format mismatch should be distinguished.
+        SLATE_LOG_DEBUG("GoPro: cannot find GPMF atom");
         return false;
     }
 

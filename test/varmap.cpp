@@ -44,13 +44,13 @@ void test_varmap_lookup()
 
     VarMap map{{KeyId::CameraModel, model_name}, {"Answer", 42}, {"List", types::VecI32{1, 2, 3}}};
     map["Array"] = Array{3.14, "foo", "bar", false, std::vector{0.0f}};
-    map["Map"] = VarMap{{KeyId::FPS, 60.0}, {KeyId::VideoTrackIds, std::vector{0, 1}}, {"Codec", "av01"}};
+    map["Map"] = VarMap{{KeyId::FPS, 60.0}, {KeyId::VideoTrackIdx, std::vector{0, 1}}, {"Codec", "av01"}};
 
     auto& model = test_lookup<std::string>(map, KeyId::CameraModel);
     SLATE_ASSERT(model == model_name);
     // Yay, simple lookup works!
 
-    test_lookup<types::VecI32>(map, "Map", KeyId::VideoTrackIds);
+    test_lookup<types::VecI32>(map, "Map", KeyId::VideoTrackIdx);
     test_lookup<std::string>(map, "Map", "Codec");
     auto& array = test_lookup<Array>(map, "Array");
     SLATE_ASSERT(array[0] == 3.14);

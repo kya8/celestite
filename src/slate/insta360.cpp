@@ -72,6 +72,7 @@ namespace slate {
 bool
 detect_insta360(Mp4Stream& file, CameraInfo& info, bool metadata_only) noexcept try
 {
+    SLATE_LOG_INFO("Probing Insta360...");
     file.seek(-magic_len, SeekFrom::End);
     unsigned char buf_magic[magic_len] {0};
     file.read(buf_magic, magic_len);

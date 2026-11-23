@@ -1,4 +1,5 @@
 #include <slate/detect.hpp>
+#include <slate/log.hpp>
 #include "detectors.hpp"
 #include <sstream>
 #include "slate/mp4/extract_video_info.hpp"
@@ -12,6 +13,7 @@ detect(const char* video_file, bool metadata_only) noexcept
 {
     Mp4Stream file;
     if (!file.open(video_file)) {
+        SLATE_LOG_ERROR("Cannot open file: {}", video_file);
         return std::nullopt;
     }
 
@@ -21,11 +23,15 @@ detect(const char* video_file, bool metadata_only) noexcept
         detect_insta360(file, result, metadata_only);
 
     VideoInfo video_info{};
-    types::VecI32 video_track_ids;
-    const auto has_video_info = extract_video_info(file, video_info, &video_track_ids);
+    types::VecI32 video_track_idx;
+    const auto has_video_info = extract_video_info(file, video_info, &video_track_idx);
 
-    if (!detect_success && !has_video_info) {
-        return std::nullopt;
+    if (!detect_success) {
+        if (!has_video_info) {
+            SLATE_LOG_ERROR("This is not a supported video file.");
+            return std::nullopt;
+        }
+        SLATE_LOG_NOTICE("No known camera vendor was detected.");
     }
     if (has_video_info) {
         VarMap& map = result.extras[GroupId::VideoInfo];
@@ -36,7 +42,7 @@ detect(const char* video_file, bool metadata_only) noexcept
         map[KeyId::FrameCount]      = video_info.nb_frames;
         map[KeyId::FPS]             = video_info.fps;
         map[KeyId::IsCFR]           = video_info.is_cfr;
-        map[KeyId::VideoTrackIds]   = std::move(video_track_ids);
+        map[KeyId::VideoTrackIdx]   = std::move(video_track_idx);
     }
 
     return result;

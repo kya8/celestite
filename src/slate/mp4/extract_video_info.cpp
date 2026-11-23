@@ -1,6 +1,7 @@
 #include "extract_video_info.hpp"
 #include "track.hpp"
 #include "slate/fourcc.hpp"
+#include "slate/log.hpp"
 #include <optional>
 #include <range.hpp>
 
@@ -30,11 +31,14 @@ seek_atom_recursive(Mp4Stream& file, std::initializer_list<std::uint32_t> fourcc
 } // namespace
 
 bool
-extract_video_info(Mp4Stream& file, VideoInfo& out, types::VecI32* video_track_ids) noexcept try
+extract_video_info(Mp4Stream& file, VideoInfo& out, types::VecI32* video_track_idx) noexcept try
 {
+    SLATE_LOG_INFO("Parsing MP4 video info...");
     file.seek(0);
     const auto mvhd = seek_atom_recursive(file, {"moov"_fc, "mvhd"_fc}, file.get_length());
-    if (!mvhd) return false;
+    if (!mvhd) {
+        return false;
+    }
     const auto mvhd_timescale = [&] {
         std::uint8_t ver; std::uint32_t _flag;
         file.read_num(ver);
@@ -51,9 +55,13 @@ extract_video_info(Mp4Stream& file, VideoInfo& out, types::VecI32* video_track_i
         if (tracks[i].hdlr_type == "vide"_fc)
             video_track_indices.push_back(static_cast<int>(i));
     }
-    if (video_track_indices.empty()) return false;
+    if (video_track_indices.empty()) {
+        return false;
+    }
     const auto& video_track = tracks[video_track_indices.front()];
-    if (video_track_ids) *video_track_ids = std::move(video_track_indices);
+    if (video_track_idx) {
+        *video_track_idx = std::move(video_track_indices);
+    }
     // Currently we only look at the first video track.
 
     // duration, geometry
@@ -64,11 +72,18 @@ extract_video_info(Mp4Stream& file, VideoInfo& out, types::VecI32* video_track_i
     const auto b = video_track.tkhd_matrix[1] >> 16;
     const auto c = video_track.tkhd_matrix[3] >> 16;
     const auto d = video_track.tkhd_matrix[4] >> 16;
-    if      (std::tie(a,b,c,d) == std::forward_as_tuple( 1, 0, 0, 1)) out.display_rotation = 0;
-    else if (std::tie(a,b,c,d) == std::forward_as_tuple( 0, 1,-1, 0)) out.display_rotation = 90;
-    else if (std::tie(a,b,c,d) == std::forward_as_tuple(-1, 0, 0,-1)) out.display_rotation = 180;
-    else if (std::tie(a,b,c,d) == std::forward_as_tuple( 0,-1, 1, 0)) out.display_rotation = 270;
-    else out.display_rotation = -1;
+    if (std::tie(a, b, c, d) == std::forward_as_tuple(1, 0, 0, 1)) {
+        out.display_rotation = 0;
+    } else if (std::tie(a, b, c, d) == std::forward_as_tuple(0, 1, -1, 0)) {
+        out.display_rotation = 90;
+    } else if (std::tie(a, b, c, d) == std::forward_as_tuple(-1, 0, 0, -1)) {
+        out.display_rotation = 180;
+    } else if (std::tie(a, b, c, d) == std::forward_as_tuple(0, -1, 1, 0)) {
+        out.display_rotation = 270;
+    } else {
+        SLATE_LOG_NOTICE("Unknown tkhd_matrix rotation.");
+        out.display_rotation = -1;
+    }
 
     // samples/frames
     // TODO: handle frames_per_sample in stsd desc
@@ -76,7 +91,9 @@ extract_video_info(Mp4Stream& file, VideoInfo& out, types::VecI32* video_track_i
     //if (video_track.stsz_count < 2) return false;
 
     const auto& stts = video_track.stts;
-    if (stts.empty()) return false;
+    if (stts.empty()) {
+        return false;
+    }
     bool cfr = true;
     const auto first_delta = std::get<1>(stts.front());
     std::uint64_t stts_samples = 0;
@@ -92,12 +109,15 @@ extract_video_info(Mp4Stream& file, VideoInfo& out, types::VecI32* video_track_i
             stts_total_duration += std::uint64_t(delta) * count;
         }
     }
-    if (stts_total_duration == 0) return false;
+    if (stts_total_duration == 0) {
+        return false;
+    }
     out.is_cfr = cfr;
     out.fps = double(stts_samples) / stts_total_duration * video_track.mdhd_timescale;
 
     return true;
+} catch (const StreamError&) {
+    return false;
 }
-catch (const StreamError&) { return false; }
 
 } // namespace slate::mp4

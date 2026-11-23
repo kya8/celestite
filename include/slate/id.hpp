@@ -36,7 +36,7 @@ enum class KeyId {
     IsCFR,
     FrameCount,
     DisplayRotation,
-    VideoTrackIds,
+    VideoTrackIdx,
 
     GyroData,
     AccData,

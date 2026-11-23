@@ -37,7 +37,7 @@ to_string(KeyId id) noexcept
     case KeyId::IsCFR                     : return "IsCFR";
     case KeyId::FrameCount                : return "FrameCount";
     case KeyId::DisplayRotation           : return "DisplayRotation";
-    case KeyId::VideoTrackIds             : return "VideoTrackIds";
+    case KeyId::VideoTrackIdx             : return "VideoTrackIdx";
     case KeyId::GyroData                  : return "GyroData";
     case KeyId::AccData                   : return "AccData";
     case KeyId::ExposureData              : return "ExposureData";
