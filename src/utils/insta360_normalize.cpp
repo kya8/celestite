@@ -12,17 +12,16 @@
 #include <cmath>        // std::tan
 #include <Eigen/Geometry>
 #include <thread>       // hardware_concurrency()
-#include <memory>
 #include <numbers>
 #include <algorithm>
 #include <cassert>
 #include "ThreadPool.hpp"
 #include "string_utils.hpp"
 #include "version.hpp"
-#include "sys_utils.hpp"
 #include "fs.hpp"
 
 using std::numbers::pi, std::numbers::inv_pi;
+using util::to_str;
 
 namespace {
 
@@ -332,7 +331,7 @@ struct Cfg {
             return false;
         }
         const auto output_dir = work_dir / (lens_id == 0? "normalized_0" : "normalized_1");
-        const auto image_files = util::get_most_occuring_extension_files(work_dir);
+        auto image_files = util::get_most_occuring_extension_files(work_dir);
         if (image_files.empty()) {
             std::println(stderr, "No images were found!");
             return false;
@@ -362,17 +361,17 @@ struct Cfg {
                     cv::Mat rhs_image;
                     if (mode && !params.joined) {
                         const fs::path rhs_path = dir[1] / src.filename();
-                        rhs_image = cv::imread(rhs_path.string());
+                        rhs_image = cv::imread(rhs_path | to_str);
                         if (rhs_image.empty()) return 1;
                     }
-                    auto in = cv::imread(src.string());
+                    auto in = cv::imread(src|to_str);
                     if (mode && !params.joined) {
                         cv::Mat concat;
                         cv::hconcat(in, rhs_image, concat);
                         in = std::move(concat);
                     }
                     if (in.empty()) {
-                        std::println(stderr, "Failure reading image {}", src.string());
+                        std::println(stderr, "Failure reading image {}", src | to_str);
                         return 1;
                     }
 

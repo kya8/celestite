@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <array>
 #include "sys_utils.hpp"
+#include "fs.hpp"
 
 namespace fs = std::filesystem;
 
@@ -93,7 +94,7 @@ int slate::main_mp4join(int argc, char** argv) noexcept
         output = inputs.front();
         output.replace_filename(output.stem().concat("_joined") += (output.extension()));
     }
-    const auto output_str = output.string();
+    const auto& output_str = output | util::to_str;
 
     const bool stdout_is_tty = sys::is_tty(stdout);
 

@@ -35,6 +35,7 @@
 // AprilTags
 
 namespace fs = std::filesystem;
+using util::to_str;
 
 namespace {
 
@@ -101,7 +102,7 @@ detect_corners(std::span<const fs::path> imgs_path, cv::Size pattern_size, bool 
     for (const auto& [img_path, out] : std::views::zip(imgs_path, result)) {
         tp.enqueue(
             [&] {
-                auto img = cv::imread(img_path.string());
+                auto img = cv::imread(img_path | to_str);
                 if (img.empty())
                     return;
                 cv::Mat img_mono;
@@ -125,7 +126,7 @@ detect_corners(std::span<const fs::path> imgs_path, cv::Size pattern_size, bool 
                     cv::drawChessboardCorners(img, pattern_size, out, true);
                     auto out_path = img_path;
                     out_path.replace_filename(img_path.stem() += "_detected.jpg");
-                    cv::imwrite(out_path.string(), img);
+                    cv::imwrite(out_path | to_str, img);
                 }
             }
         );
@@ -269,7 +270,7 @@ try
         }
 
         if (detect_size) {
-            const auto input_file = dir.string();
+            decltype(auto) input_file = dir | to_str;
             const auto input_image = cv::imread(input_file);
             if (!input_image.empty() && (pattern_size = detect_checkerboard_size(input_image, max_detect_size))) {
                 std::print("Auto-detected checkerboard size: {}x{}\n", pattern_size->height, pattern_size->width);
@@ -302,13 +303,13 @@ try
     }
     auto images = util::get_files(dir, img_ext);
     if (images.empty()) {
-        std::print(stderr, "No images were found with extension: {}\n", img_ext.string());
+        std::print(stderr, "No images were found with extension: {}\n", img_ext | to_str);
         return 1;
     }
 
     cv::Size image_size;
     {
-        const auto sample_img = cv::imread(images.front().string());
+        const auto sample_img = cv::imread(images.front() | to_str);
         if (sample_img.empty()) {
             std::println(stderr, "Could not read sample image");
             return 1;
@@ -333,7 +334,7 @@ try
 
     for (int i = nb_input_images - 1; i >= 0; --i) { // Reverse order, so erase() won't invalidate later indices.
         if (corners[i].empty()) {
-            std::println(stderr, "Could not detect patterns in {}", images[i].string());
+            std::println(stderr, "Could not detect patterns in {}", images[i] | to_str);
             failed_images.push_back(images[i]);
             images.erase(images.begin() + i);
             corners.erase(corners.begin() + i);
@@ -375,13 +376,13 @@ try
     // print reproj error for each image:
     std::print("\nPer-image reprojection error:\n");
     for (const auto& [image, val] : std::views::zip(images, per_view_error)) {
-        std::println("{}: {:.5f}", image.string(), val);
+        std::println("{}: {:.5f}", image | to_str, val);
     }
 
     if (!report.empty()) {
         std::ofstream ofs(report);
         if (!ofs) {
-            std::println(stderr, "Failed to open report file: {}", report.string());
+            std::println(stderr, "Failed to open report file: {}", report | to_str);
             return 1;
         }
         const auto local_time = []() {
@@ -397,13 +398,13 @@ try
                         "# k3: {}\n"
                         "# Detection method: {}\n"
                         "# Detected images: {} / {}\n\n",
-                    local_time, dir.string(), pattern_size->height, pattern_size->width, invert, use_k3, (corner_sb? 1 : 0),
+                    local_time, dir | to_str, pattern_size->height, pattern_size->width, invert, use_k3, (corner_sb? 1 : 0),
                     images.size(), nb_input_images);
 
         if (!failed_images.empty()) {
             ofs << "Failed images:\n";
             for (const auto& img : failed_images) {
-                ofs << img.string() << '\n';
+                ofs << (img | to_str) << '\n';
             }
             ofs << '\n';
         }
@@ -419,7 +420,7 @@ try
                    distortion_coef,
                    rms_error);
         for (const auto& [img, val] : std::views::zip(images, per_view_error)) {
-            std::println(ofs, "{}: {:.5f}", img.string(), val);
+            std::println(ofs, "{}: {:.5f}", img | to_str, val);
         }
     }
 
