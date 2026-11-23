@@ -14,7 +14,6 @@
 #include <cstdlib>
 #include <iostream>
 #include <ranges>
-#include <algorithm>
 
 using namespace slate;
 
@@ -35,7 +34,6 @@ Options:
  -p, --property <PROP>  For each input video, only display the specified property.
                         PROP must consist of a group name and at least one key name, separated by colons (:),
                         e.g., Group:Key1:Key2
- -v, --verbose          Increase verbosity level.
  --                     Treat all following arguments as input file names, even if they start with '-'.
  -V, --version          Display version information and exit.
  -h, --help             Display this help message and exit.
@@ -96,17 +94,6 @@ const Value* find_value(const GroupedVarMap& gmap, std::string_view prop) noexce
     return val;
 }
 
-using log::Level;
-
-constexpr auto min_log_level = std::to_underlying(Level::trace);
-constexpr auto max_log_level = std::to_underlying(Level::warn);
-constexpr auto max_verbosity = max_log_level - min_log_level;
-
-// Default log level when verbosity=0 is `warning'.
-constexpr Level to_level(int verbosity) noexcept {
-    return static_cast<Level>(std::clamp(max_log_level - verbosity, min_log_level, max_log_level));
-}
-
 } // namespace
 
 int slate::main_slate(int argc, char** argv) noexcept
@@ -120,7 +107,6 @@ int slate::main_slate(int argc, char** argv) noexcept
     bool show_help = false;
     bool raw_output = false;
     const char* show_property = nullptr;
-    int verbosity = 0;
     {
         bool err_flag = 0;
         bool positional_only = false;
@@ -153,10 +139,6 @@ int slate::main_slate(int argc, char** argv) noexcept
                 else {
                     err_flag = 1;
                 }
-            } else if (match(argv[i], "-v", "--verbose")) {
-                if (verbosity < max_verbosity) {
-                    verbosity += 1;
-                }
             } else if (match(argv[i], "-h", "--help")) {
                 show_help = true;
                 break;
@@ -185,9 +167,6 @@ int slate::main_slate(int argc, char** argv) noexcept
         return 0;
     }
 
-    const Level log_level = to_level(verbosity);
-    log::get_sink().level = log_level;
-    SLATE_LOG_INFO("Verbosity = {}. Log level set to {}", verbosity, log::label(log_level));
     if (metadata_only) {
         SLATE_LOG_NOTICE("Reading global metadata only. Streaming sensor data might be skipped.");
     }
@@ -265,9 +244,7 @@ int slate::main_slate(int argc, char** argv) noexcept
                         for (const auto& entry : *gyro) {
                             std::println(ofs, "{:n}", entry); // std::format defaults to round-trip format for FP
                         }
-                        if (verbosity > 0) {
-                            std::println("Gyro data saved to {}", filename);
-                        }
+                        SLATE_LOG_NOTICE("Gyro data saved to {}", filename);
                     }
                 } else {
                     std::println(stderr, "Could not find gyro data.");
@@ -284,9 +261,7 @@ int slate::main_slate(int argc, char** argv) noexcept
                         for (const auto& entry : *quat) {
                             std::println(ofs, "{:n}", entry);
                         }
-                        if (verbosity > 0) {
-                            std::println("Quaternion data saved to {}", filename);
-                        }
+                        SLATE_LOG_NOTICE("Quaternion data saved to {}", filename);
                     }
                 } else {
                     std::println(stderr, "Could not find quaternion data.");

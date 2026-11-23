@@ -1,93 +1,178 @@
 #include "slate_utils.hpp"
 #include <slate/log.hpp>
+#include "string_utils.hpp"
+#include "version.hpp"
 
 #include <string_view>
+#include <string>
 #include <print>
 #include <ranges>
-#include <numeric>
+#include <algorithm>
 #include <format>
-#include <functional>
 #include <iterator>
 #include <array>
 #include <cstdlib>  // getenv
+#include <cassert>
 
 using namespace slate;
 
 namespace {
 
-struct Applet {
-    using Fn = int(int, char**);
-    std::string_view name;
-    Fn& func;
+// Check for applet names.
+static_assert(std::ranges::all_of(applets,
+    // A condition that must evaluate to true for all applets.
+    [](const Applet& a) {
+        // Or use ranges::concat from C++26.
+        std::string allowed_chars = "_-";
+        auto a2z = std::views::iota('a', static_cast<char>('z' + 1));
+        allowed_chars.append_range(a2z);
+        //allowed_chars.append_range(std::views::iota('A', static_cast<char>('Z' + 1)));
+        allowed_chars.append_range(std::views::iota('0', static_cast<char>('9' + 1)));
+        return std::ranges::all_of(a.name, [&](char c){ return std::ranges::contains(allowed_chars, c); })
+               && std::ranges::contains(a2z, a.name.front());
+    }
+), "Applet names failed checks.");
+
+// Owning wrapper for a null-terminated string literal, so that it can be used as NTTP
+template<std::size_t N>
+requires (N > 0)
+struct StringLiteral {
+    // String size without the terminating '\0'.
+    static constexpr auto size = N - 1;
+    constexpr StringLiteral(const char(&s)[N]) noexcept {
+        std::ranges::copy(s, cstr);
+    }
+    [[nodiscard]] constexpr std::string_view view() const noexcept {
+        return {cstr, size};
+    }
+    char cstr[N]{}; // null-terminated static string buffer.
 };
 
-constexpr Applet applets[] {
-    { "inspect"           , main_slate              },
-    { "mp4join"           , main_mp4join            },
-    { "insta360_normalize", main_insta360_normalize },
-    { "calibrator"        , main_calibrator         }
-};
-
-// Build a compile-time string listing all the applet names.
-constexpr auto applets_list = [] -> std::string_view {
+/**
+ * Build a compile-time string listing all the applet names.
+ * @tparam Sep The seperator used to join the strings.
+ * @tparam Append Whether to append `Sep` after the last char.
+ */
+template<StringLiteral Sep, bool Append = false>
+constexpr std::string_view make_applets_list() {
     // auto len = std::ranges::fold_left(applets, 0, [](int sum, const Applet& a){ return sum + a.name.size(); });
-    static constexpr auto bufsize = std::transform_reduce(std::begin(applets), std::end(applets),
-                                                          0uz, std::plus<>{},
-                                                          [](const Applet& a){ return a.name.size() + 2; }) - 2;
-    static constexpr auto pair = []{
-        std::array<char, bufsize> arr{};
-        const auto end = std::ranges::copy(
-            applets
-            | std::views::transform([](const auto& fn){return fn.name;})
-            | std::views::join_with(std::string_view(", "))
-            , arr.begin()
-        ).out;
-        return std::pair{arr, end - arr.begin()};
+    // static constexpr auto bufsize = std::transform_reduce(std::begin(applets), std::end(applets),
+    //                                                       0uz, std::plus<>{},
+    //                                                       [](const Applet& a){ return a.name.size() + 2; }) - 2;
+    static constexpr auto char_range = applets
+                                | std::views::transform(&Applet::name) // The member pointer fn returns the member by reference (const std::string_view&).
+                                                                       // If the transform yields by value, `join_with` caches the current string_view
+                                                                       // by value, making itself non-const.
+                                | std::views::join_with(Sep.view());
+    static constexpr auto arr = []{
+        std::array<char, std::ranges::distance(char_range) + Append * Sep.size> arr{};
+        const auto out = std::ranges::copy(char_range, arr.begin()).out;
+        if constexpr (Append) {
+            std::ranges::copy(Sep.view(), out);
+        }
+        return arr;
     }();
-    // static_assert(pair.second == bufsize); // bufsize is exact!
-    return {pair.first.data(), pair.second};
-}();
+    return std::string_view{arr};
+};
+
+constexpr auto applets_list = make_applets_list<", ">();
+constexpr auto applets_print = make_applets_list<"\n", true>();
+
+using log::Level;
+constexpr auto min_log_level = std::to_underlying(Level::trace);
+constexpr auto max_log_level = std::to_underlying(Level::warn);
+constexpr auto max_verbosity = max_log_level - min_log_level;
+constexpr Level to_level(int verbosity) noexcept {
+    return static_cast<Level>(std::clamp(max_log_level - verbosity, min_log_level, max_log_level));
+}
+
+constexpr std::string_view base_name = "slate";
+
+void print_help() {
+    std::print(
+R"^^({0}: Unified command-line applets dispatcher.
+Usage: {0} [GLOBAL_OPTIONS...] <applet> [APPLET_OPTIONS...]
+
+Available applets: {1}.
+Hint: A partial prefix can be used as the applet name if it is unique.
+
+Global options:
+  -l, --list-applets  Print all available applets, one per line
+  -v, --verbose       Increase verbosity level; can be repeated; also applies to applets
+  -h, --help          Show help message
+  -V, --version       Display version information
+)^^",
+    base_name, applets_list);
+}
 
 } // namespace
 
 int main(int argc, char** argv)
 {
-    if (argc < 2) {
-        std::println(stderr, "Specify an applet to run.");
-        std::println(stderr, "Available applets: {}.", applets_list);
+    g_verbosity = 0;
+    int ix = 1;
+    for (; ix < argc; ++ix) {
+        const std::string_view arg = argv[ix];
+        if (arg.front() != '-') {
+            break;
+        } else if (match(arg, "-l", "--list-applets")) {
+            std::print(applets_print);
+            return 0;
+        } else if (match(arg, "-h", "--help")) {
+            print_help();
+            return 0;
+        } else if (match(arg, "-V", "--version")) {
+            version::print_info();
+            return 0;
+        } else if (match(arg, "-v", "--verbose")) {
+            g_verbosity += (g_verbosity < max_verbosity);
+        } else {
+            std::println(stderr, "Invalid global option: {}", arg);
+            return 2;
+        }
+    }
+    if (ix == argc) {
+        std::println(stderr, "Specify an applet to run. Or pass '-h' for help.\nAvailable applets: {}.", applets_list);
         return 2;
     }
+
+    const std::string_view arg1 = argv[ix];
     int hit = 0;
-    std::string_view arg = argv[1];
     const Applet* target = nullptr;
     for (const auto& applet : applets) {
-        if (applet.name.starts_with(arg)) { // Allow unique partial matches.
+        if (applet.name.starts_with(arg1)) { // Allow unique partial matches.
+            if (++hit > 1) {
+                break;
+            }
             target = &applet;
-            hit += 1;
         }
     }
-
-    const auto& env_key = "SLATE_LOG_LEVEL";
-    log::Level log_level = log::Level::warn;
-    if (const auto env_val = std::getenv(env_key)) {
-        if (const auto lvl = log::find_level(env_val)) {
-            log_level = *lvl;
-        }
-    }
-    log::get_sink().level = log_level;
-    SLATE_LOG_DEBUG("Slate log level set to {}", log::label(log_level));
-
-    SLATE_LOG_DEBUG("Prefix \"{}\" match count: {}.", arg, hit);
     if (hit != 1) {
         if (hit > 1) {
-            std::println(stderr, "Ambiguous applet name: \"{}\"", arg);
+            std::println(stderr, "Ambiguous applet name: \"{}\"", arg1);
         } else {
-            std::println(stderr, "Unknown applet name: \"{}\"", arg);
+            std::println(stderr, "Unknown applet name: \"{}\"", arg1);
         }
         std::println(stderr, "Available applets: {}.", applets_list);
         return 2;
     }
+    assert(target != nullptr);
+
+    const Level log_level = []{
+        constexpr const auto& env_key = "SLATE_LOG_LEVEL";
+        // Log level from env var overrides log level mapped from verbosity.
+        if (const auto env_val = std::getenv(env_key)) {
+            if (const auto lvl = log::find_level(env_val)) {
+                return *lvl;
+            }
+            //SLATE_LOG_WARN("env {}={} is not a known log level", env_key, env_val);
+        }
+        return to_level(g_verbosity);
+    }();
+    log::get_sink().level = log_level;
+    SLATE_LOG_DEBUG("Slate log level set to {}", log::label(log_level));
+    SLATE_LOG_INFO("Verbosity={}.", g_verbosity);
 
     SLATE_LOG_DEBUG("Entering applet \"{}\"...", target->name);
-    return target->func(argc - 1, argv + 1);
+    return target->func(argc - ix, argv + ix);
 }

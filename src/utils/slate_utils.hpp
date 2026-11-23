@@ -1,12 +1,32 @@
 #ifndef SLATE_UTILS_SLATE_UTILS_HPP
 #define SLATE_UTILS_SLATE_UTILS_HPP
 
+#include <string_view>
+
 namespace slate {
+
+struct Applet {
+    using Fn = int(int, char**);
+    std::string_view name;
+    Fn& func;
+    // std::string_view desc{};
+};
 
 int main_slate(int argc, char** argv) noexcept;
 int main_calibrator(int argc, char** argv) noexcept;
 int main_insta360_normalize(int argc, char** argv) noexcept;
 int main_mp4join(int argc, char** argv) noexcept;
+
+inline constexpr Applet applets[] {
+    { "inspect"           , main_slate              },
+    { "mp4join"           , main_mp4join            },
+    { "insta360_normalize", main_insta360_normalize },
+    { "calibrator"        , main_calibrator         },
+};
+
+// Global application verbosity. Use with care!
+// Set it at application start.
+inline int g_verbosity = 0;
 
 } // namespace slate
 
