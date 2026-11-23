@@ -79,11 +79,11 @@ constexpr auto applets_list = make_applets_list<", ">();
 constexpr auto applets_print = make_applets_list<"\n", true>();
 
 using log::Level;
-constexpr auto min_log_level = std::to_underlying(Level::trace);
-constexpr auto max_log_level = std::to_underlying(Level::warn);
-constexpr auto max_verbosity = max_log_level - min_log_level;
-constexpr Level to_level(int verbosity) noexcept {
-    return static_cast<Level>(std::clamp(max_log_level - verbosity, min_log_level, max_log_level));
+// Default log level integer when verbose is 0.
+constexpr auto v0_log_level = SLATE_LOG_LEVEL_WARN;
+constexpr auto max_verbosity = v0_log_level - SLATE_LOG_LEVEL_MIN;
+constexpr Level v_to_log_level(int verbosity) noexcept {
+    return log::to_level(v0_log_level - verbosity);
 }
 
 constexpr std::string_view base_name = "slate";
@@ -91,6 +91,7 @@ constexpr std::string_view base_name = "slate";
 void print_help() {
     std::print(
 R"^^({0}: Unified command-line applets dispatcher.
+
 Usage: {0} [GLOBAL_OPTIONS...] <applet> [APPLET_OPTIONS...]
 
 Available applets: {1}.
@@ -110,9 +111,9 @@ Global options:
 int main(int argc, char** argv)
 {
     g_verbosity = 0;
-    int ix = 1;
-    for (; ix < argc; ++ix) {
-        const std::string_view arg = argv[ix];
+    int ix_global_opt_end = 1;
+    for (; ix_global_opt_end < argc; ++ix_global_opt_end) {
+        const std::string_view arg = argv[ix_global_opt_end];
         if (arg.front() != '-') {
             break;
         } else if (match(arg, "-l", "--list-applets")) {
@@ -131,12 +132,12 @@ int main(int argc, char** argv)
             return 2;
         }
     }
-    if (ix == argc) {
+    if (ix_global_opt_end == argc) {
         std::println(stderr, "Specify an applet to run. Or pass '-h' for help.\nAvailable applets: {}.", applets_list);
         return 2;
     }
 
-    const std::string_view arg1 = argv[ix];
+    const std::string_view arg1 = argv[ix_global_opt_end];
     int hit = 0;
     const Applet* target = nullptr;
     for (const auto& applet : applets) {
@@ -167,12 +168,12 @@ int main(int argc, char** argv)
             }
             //SLATE_LOG_WARN("env {}={} is not a known log level", env_key, env_val);
         }
-        return to_level(g_verbosity);
+        return v_to_log_level(g_verbosity);
     }();
     log::get_sink().level = log_level;
-    SLATE_LOG_DEBUG("Slate log level set to {}", log::label(log_level));
+    SLATE_LOG_DEBUG("Slate runtime log level set to {}. Compile-time log level is {}", log::label(log_level), log::label(log::to_level(SLATE_LOG_LEVEL)));
     SLATE_LOG_INFO("Verbosity={}.", g_verbosity);
 
     SLATE_LOG_DEBUG("Entering applet \"{}\"...", target->name);
-    return target->func(argc - ix, argv + ix);
+    return target->func(argc - ix_global_opt_end, argv + ix_global_opt_end);
 }

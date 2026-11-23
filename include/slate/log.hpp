@@ -9,6 +9,7 @@
 #include <utility>
 #include <concepts>
 #include <optional>
+#include <algorithm>
 #ifdef SLATE_LOG_MULTI_SINK
 #error "Not implemented yet."
 #include <span>
@@ -23,19 +24,23 @@
 #define SLATE_LOG_LEVEL_CRIT     6
 #define SLATE_LOG_LEVEL_OFF      7
 
+// Synonymous levels
+#define SLATE_LOG_LEVEL_MIN SLATE_LOG_LEVEL_TRACE
+#define SLATE_LOG_LEVEL_MAX SLATE_LOG_LEVEL_CRIT
+
 // Set this in compile definitions to strip lower-level log macros.
 // This only applies to `SLATE_LOG_*` macros!
 #ifndef SLATE_LOG_LEVEL
 #define SLATE_LOG_LEVEL SLATE_LOG_LEVEL_DEBUG
 #endif
 
-#if SLATE_LOG_LEVEL < SLATE_LOG_LEVEL_TRACE || SLATE_LOG_LEVEL > SLATE_LOG_LEVEL_OFF
+#if SLATE_LOG_LEVEL < SLATE_LOG_LEVEL_MIN || SLATE_LOG_LEVEL > SLATE_LOG_LEVEL_OFF
 #error "SLATE_LOG_LEVEL must be a SLATE_LOG_LEVEL_* value"
 #endif
 
 namespace slate::log {
 
-enum class Level {
+enum class Level : int {
     trace  = SLATE_LOG_LEVEL_TRACE,
     debug  = SLATE_LOG_LEVEL_DEBUG,
     info   = SLATE_LOG_LEVEL_INFO,
@@ -44,8 +49,13 @@ enum class Level {
     error  = SLATE_LOG_LEVEL_ERROR,
     crit   = SLATE_LOG_LEVEL_CRIT,
     off    = SLATE_LOG_LEVEL_OFF,  // Settable (to turn off a sink), but should not be used in log calls.
-    // END = -1  // Sentinel value
+    min    = trace, // Synonymous value
+    max    = crit,  // Synonymous value
 };
+
+constexpr Level clamp(Level lv, bool loggable = true) noexcept {
+    return std::clamp(lv, Level::min, loggable? Level::max : Level::off);
+}
 
 /**
  * Get a text label of the specified log level
@@ -53,18 +63,34 @@ enum class Level {
  */
 SLATE_EXPORT std::string_view label(Level lvl) noexcept;
 
+inline constexpr bool is_settable_level(Level lv) noexcept {
+    return lv >= Level::min && lv <= Level::off;
+}
+
+inline constexpr bool is_log_level(Level lv) noexcept {
+    return lv >= Level::min && lv <= Level::max;
+}
+
+/**
+ * Maps integer to Level
+ */
+inline constexpr Level to_level(int ilv) noexcept {
+    return clamp(static_cast<Level>(ilv), false);
+}
+template<int ILv>
+consteval Level to_level() {
+    constexpr auto lv = static_cast<Level>(ILv);
+    if (!is_settable_level(lv)) {
+        throw "Not a valid level";
+    }
+    return lv;
+}
+
 /**
  * Find a log level according to its name.
  * @param[in] name Lower-case name of a log level.
  */
 SLATE_EXPORT std::optional<Level> find_level(std::string_view name) noexcept;
-
-inline constexpr bool is_log_level(Level lv) noexcept {
-    return lv >= Level::trace && lv < Level::off;
-}
-
-template<Level Lv>
-concept IsLogLevel = is_log_level(Lv);
 
 struct Sink {
     std::FILE* file = nullptr; // Borrowed file stream open for output.
@@ -135,7 +161,7 @@ template<bool CheckLevel = true>
 SLATE_EXPORT void write(Level lvl, std::string_view message) noexcept;
 
 template<Level Lv, bool CheckLevel = true>
-requires IsLogLevel<Lv>
+requires (is_log_level(Lv))
 SLATE_EXPORT void write(std::string_view message) noexcept;
 
 template<bool CheckLevel = true, std::formattable<char> ...Args>
@@ -146,7 +172,7 @@ void write(Level lvl, std::format_string<Args...> fmt, Args&& ...args) {
 
 template<auto Lv, bool CheckLevel = true, std::formattable<char> ...Args>
 // The `auto Lv` is here to workaround a MSVC bug where it erroneously chooses this overload.
-requires (std::same_as<decltype(Lv), Level> && IsLogLevel<Lv> && sizeof...(Args) > 0)
+requires (std::same_as<decltype(Lv), Level> && is_log_level(Lv) && sizeof...(Args) > 0)
 void write(std::format_string<Args...> fmt, Args&& ...args) {
     write<Lv, CheckLevel>(std::format(fmt, std::forward<Args>(args)...));
 }

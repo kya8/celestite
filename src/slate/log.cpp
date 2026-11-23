@@ -54,11 +54,6 @@ constexpr int level_len_max = std::ranges::max(lut_levels
                                           return l.label.size();
                                       }));
 
-[[maybe_unused]] bool is_settable_level(Level level) noexcept
-{
-    return level >= Level::trace && level <= Level::off;
-}
-
 // use unlocked stdio if available
 #ifdef _WIN32
     #define my_putc _putc_nolock
@@ -146,7 +141,7 @@ void write_msg_line(std::FILE* file, char* leader_start, std::size_t leader_len,
 std::string_view label(Level lvl) noexcept
 {
     assert(is_settable_level(lvl));
-    const auto& label = lut_levels[std::to_underlying(lvl) - SLATE_LOG_LEVEL_TRACE].label;
+    const auto& label = lut_levels[std::to_underlying(lvl) - SLATE_LOG_LEVEL_MIN].label;
     // Remove the brackets
     return {label.begin() + 1, label.end() - 1};
 }
@@ -154,7 +149,7 @@ std::string_view label(Level lvl) noexcept
 std::optional<Level> find_level(std::string_view name) noexcept
 {
     using enum Level;
-    /*--*/ if (match(name, "trace")) {
+    /*--*/ if (match(name, "trace", "min")) {
         return trace;
     } else if (match(name, "debug")) {
         return debug;
@@ -166,7 +161,7 @@ std::optional<Level> find_level(std::string_view name) noexcept
         return warn;
     } else if (match(name, "error", "err")) {
         return error;
-    } else if (match(name, "crit", "critical")) {
+    } else if (match(name, "crit", "critical", "max")) {
         return crit;
     } else if (match(name, "off", "disable")) {
         return off;
@@ -233,7 +228,7 @@ void write(Level lvl, std::string_view message)
     assert(is_log_level(lvl));
 
     const auto now = std::chrono::floor<std::chrono::milliseconds>(std::chrono::system_clock::now());
-    const auto& level_info = lut_levels[static_cast<int>(lvl) - SLATE_LOG_LEVEL_TRACE];
+    const auto& level_info = lut_levels[static_cast<int>(lvl) - SLATE_LOG_LEVEL_MIN];
     // Formatted lines are cached.
     std::string line_plain;
     std::string line_colored;
@@ -274,7 +269,7 @@ void write(Level lvl, std::string_view message) noexcept
     char buf_leader[bufsize];
     char* p = buf_leader;
     p += sprint_iso_time(p, time_maxlen);
-    const auto& lvl_info = lut_levels[std::to_underlying(lvl) - std::to_underlying(Level::trace)];
+    const auto& lvl_info = lut_levels[std::to_underlying(lvl) - SLATE_LOG_LEVEL_MIN];
     if (sink.color) {
         p = std::ranges::copy(lvl_info.style, p).out;
     }
@@ -288,7 +283,7 @@ void write(Level lvl, std::string_view message) noexcept
 }
 
 template<Level Lv, bool CheckLevel>
-requires IsLogLevel<Lv>
+requires (is_log_level(Lv))
 void write(std::string_view message) noexcept
 {
     if constexpr (CheckLevel) {
@@ -296,7 +291,7 @@ void write(std::string_view message) noexcept
             return;
         }
     }
-    constexpr const auto& lvl_info = lut_levels[std::to_underlying(Lv) - std::to_underlying(Level::trace)];
+    constexpr const auto& lvl_info = lut_levels[std::to_underlying(Lv) - SLATE_LOG_LEVEL_MIN];
     static constexpr auto bufsize = time_maxlen + lvl_info.style.size() + lvl_info.label.size() + reset_style.size()+ 1;
     char buf_leader[bufsize];
     char* p = buf_leader;
