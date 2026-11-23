@@ -3,6 +3,7 @@
 #include <GPMF_parser.h>
 #include "slate/fourcc.hpp"
 #include "slate/mp4/track.hpp"
+#include "slate/log.hpp"
 #include "helper_templates.hpp"
 #include <algorithm>
 #include <range.hpp>
@@ -25,22 +26,32 @@ detect_gopro(Mp4Stream& file, CameraInfo& info, bool metadata_only) noexcept
 
         data = file.read_atom_data(atom);
     } catch (const StreamError&) {
+        SLATE_LOG_ERROR("Error while reading MP4 file stream");
         return false;
     }
 
     info.vendor = CameraVendor::GoPro;  // Now we're sure it's a GoPro video.
-    if (data.size() < sizeof(uint32_t)) return false;
+    SLATE_LOG_DEBUG("Found GPMF atom. Data size {}", data.size());
+    if (data.size() < sizeof(uint32_t)) {
+        SLATE_LOG_ERROR("GPMF data size is too small");
+        return false;
+    }
 
-    GpmfWrapper gs(data.data(), data.size());
-    if (!gs) return false;
+    GpmfWrapper gs(data.data(), (std::ptrdiff_t)data.size());
+    if (!gs) {
+        SLATE_LOG_ERROR("GPMF stream initialization failed!");
+        return false;
+    }
 
     do {
         const auto key = GPMF_Key(gs.get());
+        const auto key_str = fourcc_str(key);
         if (eq_one(key, (uint32_t)STR2FOURCC("CASN"), (uint32_t)STR2FOURCC("MINF"), (uint32_t)STR2FOURCC("VFOV"), (uint32_t)STR2FOURCC("FMWR"), (uint32_t)STR2FOURCC("EISA"), (uint32_t)STR2FOURCC("OREN"))) {
             const auto nb_samples = GPMF_Repeat(gs.get());
             const auto bufsize = GPMF_FormattedDataSize(gs.get());
             std::vector<char> strbuf(bufsize + 1); // add NUL
             if (GPMF_FormattedData(gs.get(), strbuf.data(), bufsize, 0, nb_samples) == GPMF_OK) {
+                SLATE_LOG_DEBUG("Parsed GPMF metadata {}", key_str);
                 switch(key) {
                 case STR2FOURCC("MINF"):
                     info.extras[GroupId::NormalizedMetadata][KeyId::CameraModel]        = std::string(strbuf.data());
@@ -68,11 +79,17 @@ detect_gopro(Mp4Stream& file, CameraInfo& info, bool metadata_only) noexcept
                 default:
                     break;
                 }
+            } else {
+                SLATE_LOG_WARN("Error while parsing GPMF metadata tag {}", key_str);
             }
+        } else {
+            SLATE_LOG_DEBUG("Skipped GPMF metadata tag {}", key_str);
         }
     } while (GPMF_OK == GPMF_Next(gs.get(), GPMF_RECURSE_LEVELS));
 
-    if (metadata_only) return true;
+    if (metadata_only) {
+        return true;
+    }
 
     // insert global udta/GPMF box data
     static_assert(std::is_same_v<decltype(data), types::VecBytes>);
@@ -82,7 +99,9 @@ detect_gopro(Mp4Stream& file, CameraInfo& info, bool metadata_only) noexcept
     // read and parse gpmd samples one by one
     const auto tracks = get_tracks(file);
     const auto gpmd_track = std::find_if(tracks.cbegin(), tracks.cend(), [](const auto& track) { return track.stsd_first_format == "gpmd"_fc; });
-    if (gpmd_track == tracks.cend()) return true;
+    if (gpmd_track == tracks.cend()) {
+        return true;
+    }
     SampleReader sample_reader(file, *gpmd_track);
     SampleReader::SampleInfo sample;
 
@@ -91,24 +110,32 @@ detect_gopro(Mp4Stream& file, CameraInfo& info, bool metadata_only) noexcept
     bool err_cori = false, err_gyro = false;
 
     while (sample_reader.read_next(sample)) {
-        if (sample.data.size() < sizeof(uint32_t)) return true;
-        GpmfWrapper gs(sample.data.data(), sample.data.size());
-        if (!gs) return true;
+        if (sample.data.size() < sizeof(uint32_t)) {
+            return true;
+        }
+        GpmfWrapper gs(sample.data.data(), (std::ptrdiff_t)sample.data.size());
+        if (!gs) {
+            SLATE_LOG_WARN("Sample GPMF initialization failed");
+            return true;
+        }
 
-        do { // loop once
+        do { // loop once over all samples
             const auto key = GPMF_Key(gs.get());
+            SLATE_LOG_TRACE("GPMD packet with key: {}", fourcc_str(key));
             if (key == (uint32_t)STR2FOURCC("CORI") && !err_cori) {
-                [[maybe_unused]] const auto dtype         = GPMF_Type(gs.get());
-                const auto nb_axis       = GPMF_ElementsInStruct(gs.get());
+                [[maybe_unused]] const auto dtype = GPMF_Type(gs.get());
+                const auto nb_axis = GPMF_ElementsInStruct(gs.get());
                 const auto sample_repeat = GPMF_Repeat(gs.get());
                 if (nb_axis != 4) {
                     err_cori = true;
+                    SLATE_LOG_WARN("Unexpected CORI sample naxis: {}", nb_axis);
                     continue;
                 }
                 const auto old_size = CORIs.size();
                 CORIs.resize(old_size + sample_repeat * nb_axis);
                 if (GPMF_ScaledData(gs.get(), CORIs.data() + old_size, sample_repeat * nb_axis * sizeof(double), 0, sample_repeat, GPMF_TYPE_DOUBLE) != GPMF_OK) {
                     err_cori = true;
+                    SLATE_LOG_WARN("Error parsing CORI sample");
                 }
             } else if (key == (uint32_t)STR2FOURCC("GYRO") && !err_gyro) {
                 const auto sample_repeat = GPMF_Repeat(gs.get());
@@ -117,6 +144,7 @@ detect_gopro(Mp4Stream& file, CameraInfo& info, bool metadata_only) noexcept
                 Gyros.resize(old_size + sample_repeat * nb_axis);
                 if (GPMF_ScaledData(gs.get(), Gyros.data() + old_size, sample_repeat * nb_axis * sizeof(double), 0, sample_repeat, GPMF_TYPE_DOUBLE) != GPMF_OK) {
                     err_gyro = true;
+                    SLATE_LOG_WARN("Error parsing GYRO sample");
                 }
             }
         } while (GPMF_OK == GPMF_Next(gs.get(), GPMF_RECURSE_LEVELS));
