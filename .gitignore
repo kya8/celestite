@@ -1,5 +1,6 @@
 [Bb]uild*/
 out/
+local/
 **/vcpkg_installed
 vcpkg
 CMakeSettings.json
