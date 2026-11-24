@@ -20,9 +20,9 @@ using namespace slate;
 namespace {
 
 const auto& help_msg =
-R"^^(slate: Extract and display camera information from video files.
+R"^^(inspect: Extract and display camera information from video files.
 
-Usage: slate <FILES...> [OPTIONS...]
+Usage: inspect <FILES...> [OPTIONS...]
 
 Options:
  -m, --metadata-only    Only extract metadata, skip sensor data and other streaming data.
