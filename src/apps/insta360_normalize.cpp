@@ -32,9 +32,13 @@ parse_csv(const char* str, char delim = ',') noexcept
     char* end;
     while (*str != 0) {
         const auto d = std::strtod(str, &end);
-        if (end == str) return ret;
+        if (end == str) {
+            return ret;
+        }
         ret.push_back(d);
-        if (*end == 0 || *end != delim) return ret;
+        if (*end == 0 || *end != delim) {
+            return ret;
+        }
         str = end + 1;
     }
     return ret;
@@ -101,7 +105,7 @@ double inverse_eac(double x)
  | F | L | U |
  | B | R | D |
 ***************/
-static constexpr std::string_view cube_order_default = "flubrd";
+constexpr std::string_view cube_order_default = "flubrd";
 
 // cube_order is assumed to be valid
 CvMaps get_cubemap(int size, auto&& proj, bool equi_angular, std::string_view cube_order) noexcept
@@ -207,76 +211,83 @@ struct Cfg {
 
     bool load_args(int argc, char** argv) noexcept
     {
-        bool err_flag = 0;
+        bool err_flag = false;
         int i = 1;
         const auto check_arg = [&] {
             if (i+1 >= argc /* || argv[i+1][0] == '-' */) {
-                err_flag = 1;
+                err_flag = true;
                 return false;
             }
             return true;
         };
 
         while (i < argc && !err_flag) {
-            if (match(argv[i], "-v", "--video")) {
+            using util::match_any;
+            if (match_any(argv[i], "-v", "--video")) {
                 if (check_arg()) {
                     video_file = argv[++i];
                 }
-            } else if (match(argv[i], "-l", "-0", "--dir0", "-d0")) {
+            } else if (match_any(argv[i], "-l", "-0", "--dir0", "-d0")) {
                 if (check_arg()) {
                     dir[0] = argv[++i];
                 }
-            } else if (match(argv[i], "-r", "-1", "--dir1", "-d1")) {
+            } else if (match_any(argv[i], "-r", "-1", "--dir1", "-d1")) {
                 if (check_arg()) {
                     dir[1] = argv[++i];
                 }
-            } else if (match(argv[i], "-f", "--fov")) {
+            } else if (match_any(argv[i], "-f", "--fov")) {
                 if (check_arg()) {
                     char* str_end;
                     fov_x = std::strtod(argv[++i], &str_end);
-                    if (str_end == argv[i]) err_flag = 1;
+                    if (str_end == argv[i]) {
+                        err_flag = true;
+                    }
                 }
-            } else if (match(argv[i], "-w", "--width")) {
+            } else if (match_any(argv[i], "-w", "--width")) {
                 if (check_arg()) {
                     char* str_end;
                     output_width = std::strtol(argv[++i], &str_end, 0);
-                    if (str_end == argv[i]) err_flag = 1;
+                    if (str_end == argv[i]) {
+                        err_flag = true;
+                    }
                 }
-            } else if (match(argv[i], "--no-crop")) {
+            } else if (match_any(argv[i], "--no-crop")) {
                 with_crop = false;
-            } else if (match(argv[i], "-T", "--threads")) {
+            } else if (match_any(argv[i], "-T", "--threads")) {
                 if (check_arg()) {
                     char* str_end;
                     nb_threads = std::strtoul(argv[++i], &str_end, 0);
-                    if (str_end == argv[i]) err_flag = 1;
+                    if (str_end == argv[i]) {
+                        err_flag = true;
+                    }
                 }
-            } else if (match(argv[i], "-E", "--eqr")) {
+            } else if (match_any(argv[i], "-E", "--eqr")) {
                 mode = Equirectangular;
-            } else if (match(argv[i], "-C", "--cube")) {
+            } else if (match_any(argv[i], "-C", "--cube")) {
                 mode = Cubemap;
-            } else if (match(argv[i], "--cube-order")) {
+            } else if (match_any(argv[i], "--cube-order")) {
                 if (check_arg()) {
                     cubemap_order = argv[++i];
                 }
-            } else if (match(argv[i], "--eac")) {
+            } else if (match_any(argv[i], "--eac")) {
                 eac = true;
-            } else if (match(argv[i], "--tf")) {
+            } else if (match_any(argv[i], "--tf")) {
                 if (check_arg()) {
                     const auto v = parse_csv(argv[++i]);
                     if (v.size() != 7) {
-                        err_flag = 1;
+                        err_flag = true;
                     } else {
                         has_tf = true;
                         tf = Eigen::Translation3d(v[0], v[1], v[2]) * Eigen::Quaterniond(v.data() + 3);
                     }
                 }
-            } else if (match(argv[i], "-V", "--version")) {
+            } else if (match_any(argv[i], "-V", "--version")) {
                 print_version = true;
                 break;
-            } else if (match(argv[i], "-h", "--help")) {
+            } else if (match_any(argv[i], "-h", "--help")) {
                 print_help = true;
                 break;
-            } else if (match(argv[i], "-F", "--format")) {
+            } else if (match_any(argv[i], "-F", "--format")) {
                 if (check_arg()) {
                     output_image_format = argv[++i];
                 }
@@ -289,7 +300,9 @@ struct Cfg {
 
     bool process_dir(int lens_id, const slate::insta360::Params& params, auto& pool) noexcept try
     {
-        if (mode) lens_id = 0;
+        if (mode) {
+            lens_id = 0;
+        }
         const auto& lens = params.lens[lens_id];
 
         const auto output_width  = this->output_width > 0? this->output_width : params.width;
@@ -309,16 +322,18 @@ struct Cfg {
                     uv[0] += params.width;
                     return uv;
                 };
-                if (mode == Equirectangular)
+                if (mode == Equirectangular) {
                     return get_equirectangular_map(output_height, proj);
-                else
+                } else {
                     return get_cubemap(params.height / 2, proj, eac, cubemap_order);
+                }
             }
             return get_perspective_map({output_width, output_height}, f, cx, cy,
             [&](double x, double y, double z) {
                 auto uv = lens.project_point(x, y, z);
-                if (lens_id == 1 && params.joined)
+                if (lens_id == 1 && params.joined) {
                     uv[0] += params.width;
+                }
                 return uv;
             });
         }();
@@ -362,7 +377,9 @@ struct Cfg {
                     if (mode && !params.joined) {
                         const fs::path rhs_path = dir[1] / src.filename();
                         rhs_image = cv::imread(rhs_path | to_str);
-                        if (rhs_image.empty()) return 1;
+                        if (rhs_image.empty()) {
+                            return 1;
+                        }
                     }
                     auto in = cv::imread(src|to_str);
                     if (mode && !params.joined) {
@@ -389,7 +406,9 @@ struct Cfg {
                 {
                     std::lock_guard lk(mtx);
                     cnt_done += 1;
-                    if (status != 0) cnt_bad += 1;
+                    if (status != 0) {
+                        cnt_bad += 1;
+                    }
                 }
                 cond.notify_all();
                 //return status;
@@ -407,15 +426,18 @@ struct Cfg {
             out.append(std::to_string(prev_done)).append(" / ").append(std::to_string(total_images));
             std::fputs(out.c_str(), stdout);
             std::fflush(stdout);
-            if (prev_done == total_images) break;
+            if (prev_done == total_images) {
+                break;
+            }
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
         pool.wait_all();
         push_work.join();
-        if (mode != Mode::Split)
-            std::print("{}", (mode == Equirectangular? "\nEquirectangular" : "\nCubemap"));
-        else
+        if (mode != Mode::Split) {
+            std::print("{}", (mode == Equirectangular ? "\nEquirectangular" : "\nCubemap"));
+        } else {
             std::print("\nLens {}", lens_id);
+        }
         std::print(" finished: {} in total, {} failed.\n", total_images, cnt_bad);
 
         if (mode == Mode::Split) {
@@ -488,13 +510,15 @@ struct Cfg {
             // Get Insta360 builtin tf
             has_tf = [&] {
                 const auto offset_v3 = cam_info->extras.get<types::VecDouble>(GroupId::Metadata, "offset_v3");
-                if (!offset_v3)
+                if (!offset_v3) {
                     return false;
+                }
                 const auto r_b0 = insta360::get_R0(offset_v3->data(), static_cast<int>(offset_v3->size()));
                 const auto r_b1 = insta360::get_R1(offset_v3->data(), static_cast<int>(offset_v3->size()));
                 const auto t_01 = insta360::get_T01(offset_v3->data(), static_cast<int>(offset_v3->size()));
-                if (!(r_b0 && r_b1 && t_01))
+                if (!(r_b0 && r_b1 && t_01)) {
                     return false;
+                }
                 const Eigen::Quaterniond r_01 = Eigen::Quaterniond(*r_b1) * Eigen::Quaterniond(*r_b0).inverse();
                 tf = Eigen::Translation3d{*t_01} * r_01;
                 std::println("Using built-in lenses transform: {}", std::tie(t_01->x(), t_01->y(), t_01->z(),
@@ -536,18 +560,26 @@ struct Cfg {
             return 1;
         }
 
-        auto pool = ThreadPool([&]{
-            if (nb_threads > 0) return nb_threads;
-            const auto n = std::thread::hardware_concurrency();
-            return n? n : 8u;
-        }(), 32);
+        auto pool = ThreadPool(
+            [&] {
+                if (nb_threads > 0) {
+                    return nb_threads;
+                }
+                const auto n = std::thread::hardware_concurrency();
+                return n ? n : 8u;
+            }(),
+            32);
 
         if (mode) {
             process_dir(0, params, pool);
         }
         else {
-            if (!dir[0].empty()) process_dir(0, params, pool);
-            if (!dir[1].empty() || params.joined) process_dir(1, params, pool);
+            if (!dir[0].empty()) {
+                process_dir(0, params, pool);
+            }
+            if (!dir[1].empty() || params.joined) {
+                process_dir(1, params, pool);
+            }
         }
 
         return 0;

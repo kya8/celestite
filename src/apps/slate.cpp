@@ -43,8 +43,9 @@ GroupId find_group(std::string_view str) noexcept
 {
     for (int i = 0; i < std::to_underlying(GroupId::Max_GroupId); ++i) {
         const auto group_id = static_cast<GroupId>(i);
-        if (to_string(group_id) == str)
+        if (to_string(group_id) == str) {
             return group_id;
+        }
     }
     return GroupId::Max_GroupId;
 }
@@ -53,8 +54,9 @@ KeyId find_key(std::string_view str) noexcept
 {
     for (int i = 0; i < std::to_underlying(KeyId::Max_KeyId); ++i) {
         const auto key_id = static_cast<KeyId>(i);
-        if (to_string(key_id) == str)
+        if (to_string(key_id) == str) {
             return key_id;
+        }
     }
     return KeyId::Max_KeyId;
 }
@@ -85,8 +87,9 @@ const Value* find_value(const GroupedVarMap& gmap, std::string_view prop) noexce
             } else {
                 val = map->get(key);
             }
-            if (!val)
+            if (!val) {
                 return nullptr;
+            }
             map = std::get_if<VarMap>(val);
         }
     }
@@ -108,41 +111,43 @@ int slate::main_slate(int argc, char** argv) noexcept
     bool raw_output = false;
     const char* show_property = nullptr;
     {
-        bool err_flag = 0;
+        bool err_flag = false;
         bool positional_only = false;
         for (int i = 1; i < argc && !err_flag; ++i) {
+            using util::match_any;
             if (positional_only) {
                 files.push_back(argv[i]);
-            } else if (match(argv[i], "--")) { // After '--', all arguments are treated as input file names.
+            } else if (match_any(argv[i], "--")) { // After '--', all arguments are treated as input file names.
                 positional_only = true;
-            } else if (match(argv[i], "-m", "--metadata-only")) {
+            } else if (match_any(argv[i], "-m", "--metadata-only")) {
                 metadata_only = true;
-            } else if (match(argv[i], "-j", "--raw-output")) {
+            } else if (match_any(argv[i], "-j", "--raw-output")) {
                 raw_output = true;
-            } else if (match(argv[i], "-g", "--dump-gyro")) {
+            } else if (match_any(argv[i], "-g", "--dump-gyro")) {
                 dump_gyro = true;
-            } else if (match(argv[i], "-q", "--dump-quat")) {
+            } else if (match_any(argv[i], "-q", "--dump-quat")) {
                 dump_quat = true;
-            } else if (match(argv[i], "-p", "--property")) {
+            } else if (match_any(argv[i], "-p", "--property")) {
                 if (++i == argc) {
-                    err_flag = 1;
+                    err_flag = true;
                 } else {
                     show_property = argv[i];
                 }
-            } else if (match(argv[i], "-l")) {
+            } else if (match_any(argv[i], "-l")) {
                 if (++i < argc) {
                     char* end;
                     max_vec_len = std::strtoul(argv[i], &end, 0);
-                    if (end == argv[i])
-                        err_flag = 1;
+                    if (end == argv[i]) {
+                        err_flag = true;
+                    }
                 }
                 else {
-                    err_flag = 1;
+                    err_flag = true;
                 }
-            } else if (match(argv[i], "-h", "--help")) {
+            } else if (match_any(argv[i], "-h", "--help")) {
                 show_help = true;
                 break;
-            } else if (match(argv[i], "-V", "--version")) {
+            } else if (match_any(argv[i], "-V", "--version")) {
                 print_version = true;
                 break;
             } else {
@@ -213,19 +218,22 @@ int slate::main_slate(int argc, char** argv) noexcept
                 std::print("{:<{}}: {}\n", "Camera Vendor", width, to_string(info->vendor));
 
                 for (const auto& [group, map] : info->extras) {
-                    if (stdout_is_colorterm)
+                    if (stdout_is_colorterm) {
                         std::print("\033[33m");
+                    }
                     std::print("<Group: {}>\n", to_string(group));
-                    if (stdout_is_colorterm)
-                        std::print("\033[0m" );
+                    if (stdout_is_colorterm) {
+                        std::print("\033[0m");
+                    }
                     if (raw_output) {
                         std::cout << map << '\n';
                     } else {
                         for (const auto& [key, value] : map) {
-                            if (stdout_is_colorterm)
+                            if (stdout_is_colorterm) {
                                 std::print("  \033[36m{:<{}}\033[0m", to_string(key), width - 2);
-                            else
+                            } else {
                                 std::print("  {:<{}}", to_string(key), width - 2);
+                            }
                             std::print(": {}\n", to_string(value, max_vec_len));
                         }
                     }

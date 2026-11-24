@@ -31,7 +31,9 @@ consteval auto range_to_array()
     auto it = std::ranges::begin(range);
 
     const auto read = [&](auto i) {
-        if (i != 0) ++it;
+        if (i != 0) {
+            ++it;
+        }
         return auto(*it);
     };
     // We have to expand all elements during initialization, since the result type

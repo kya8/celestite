@@ -31,8 +31,9 @@ auto get_spinner() noexcept
     static constexpr auto chars = std::to_array<std::string_view>({"⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"});
     return [i = 0u] mutable -> auto& {
         const auto& ret = chars[i];
-        if (++i == chars.size())
+        if (++i == chars.size()) {
             i = 0;
+        }
         return ret;
     };
 }
@@ -60,23 +61,29 @@ int slate::main_mp4join(int argc, char** argv) noexcept
 
     {
         bool print_version = false;
-        bool err_flag = 0;
+        bool err_flag = false;
         for (int i = 1; i < argc; ++i) {
-            if (match(argv[i], "-o", "--output")) {
-                if (++i < argc) output = argv[i];
-                else err_flag = 1;
-            } else if (match(argv[i], "-f", "--force")) {
+            using util::match_any;
+            if (match_any(argv[i], "-o", "--output")) {
+                if (++i < argc) {
+                    output = argv[i];
+                } else {
+                    err_flag = true;
+                }
+            } else if (match_any(argv[i], "-f", "--force")) {
                 force_overwrite = true;
-            } else if (match(argv[i], "-V", "--version")) {
+            } else if (match_any(argv[i], "-V", "--version")) {
                 print_version = true;
                 break;
-            } else if (match(argv[i], "-h", "--help")) {
+            } else if (match_any(argv[i], "-h", "--help")) {
                 std::fputs(help_msg, stdout);
                 return 0;
             } else {
                 inputs.emplace_back(argv[i]);
             }
-            if (err_flag) break;
+            if (err_flag) {
+                break;
+            }
         }
 
         if (print_version) {

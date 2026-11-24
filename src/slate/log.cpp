@@ -3,7 +3,7 @@
 #define _POSIX_C_SOURCE=200809L
 #endif
 #ifndef _DEFAULT_SOURCE
-#define _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE // NOLINT(bugprone-reserved-identifier): This is a feature test macro
 #endif
 #endif
 
@@ -16,7 +16,7 @@
 #include <mutex>
 #include <vector>
 #endif
-#include <stdio.h>
+#include <stdio.h> // NOLINT(modernize-deprecated-headers): For unlocked stdio functions
 #include <cassert>
 #include <ranges>
 #include <algorithm>
@@ -40,7 +40,6 @@ constexpr struct {
     {"[CRITICAL]", "\x1b[1;31;47m"},
 };
 
-//constexpr std::string_view time_style = "\x1b[1m";
 constexpr std::string_view reset_style = "\x1b[0m";
 
 // Minimum required buffer size for colored level string
@@ -88,7 +87,6 @@ constexpr auto const& sink = g_sink;
 constexpr void write_dec3(unsigned n, char* out) noexcept
 {
     // A LUT mapping [0, 100) to 2 decimal digits.
-    // 200 bytes in size.
     static constexpr auto lut2 = []{
         std::array<char, 100 * 2> a{};
         for (int i = 0; i < 100; ++i) {
@@ -149,21 +147,22 @@ std::string_view label(Level lvl) noexcept
 std::optional<Level> find_level(std::string_view name) noexcept
 {
     using enum Level;
-    /*--*/ if (match(name, "trace", "min")) {
+    using util::imatch_any;
+    /*--*/ if (imatch_any(name, "trace", "min")) {
         return trace;
-    } else if (match(name, "debug")) {
+    } else if (imatch_any(name, "debug")) {
         return debug;
-    } else if (match(name, "info")) {
+    } else if (imatch_any(name, "info")) {
         return info;
-    } else if (match(name, "notice")) {
+    } else if (imatch_any(name, "notice")) {
         return notice;
-    } else if (match(name, "warn", "warning")) {
+    } else if (imatch_any(name, "warn", "warning")) {
         return warn;
-    } else if (match(name, "error", "err")) {
+    } else if (imatch_any(name, "error", "err")) {
         return error;
-    } else if (match(name, "crit", "critical", "max")) {
+    } else if (imatch_any(name, "crit", "critical", "max")) {
         return crit;
-    } else if (match(name, "off", "disable")) {
+    } else if (imatch_any(name, "off", "disable")) {
         return off;
     }
     return std::nullopt;

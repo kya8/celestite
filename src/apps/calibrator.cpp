@@ -44,7 +44,9 @@ auto& get_pool() noexcept
     static ThreadPool pool(
         []{
             const auto n = std::thread::hardware_concurrency();
-            if (n > 0) return std::min(n, 16u);
+            if (n > 0) {
+                return std::min(n, 16u);
+            }
             return 8u;
         }()
     );
@@ -103,8 +105,9 @@ detect_corners(std::span<const fs::path> imgs_path, cv::Size pattern_size, bool 
         tp.enqueue(
             [&] {
                 auto img = cv::imread(img_path | to_str);
-                if (img.empty())
+                if (img.empty()) {
                     return;
+                }
                 cv::Mat img_mono;
                 cv::cvtColor(img, img_mono, cv::COLOR_BGR2GRAY);
                 if (invert) {
@@ -120,8 +123,9 @@ detect_corners(std::span<const fs::path> imgs_path, cv::Size pattern_size, bool 
                     return;
                 }
                 // refine corner coordinates (not needed for findChessboardCornersSB)
-                if (!sb)
+                if (!sb) {
                     cv::cornerSubPix(img_mono, out, {11, 11}, {-1, -1}, cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::MAX_ITER, 30, 0.0001));
+                }
                 if (draw) {
                     cv::drawChessboardCorners(img, pattern_size, out, true);
                     auto out_path = img_path;
@@ -200,47 +204,58 @@ try
     bool print_help = false;
     {
         const bool arg_status = [&] {
-            if (argc < 2)
+            if (argc < 2) {
                 return false;
+            }
 
             for (int i = 1; i < argc; ++i) {
                 const auto opt = std::string_view{argv[i]};
-                if (match(opt, "-i", "--invert")) {
+                using util::match_any;
+                if (match_any(opt, "-i", "--invert")) {
                     invert = true;
-                } else if (match(opt, "-k", "--k3", "-k3")) {
+                } else if (match_any(opt, "-k", "--k3", "-k3")) {
                     use_k3 = true;
-                } else if (match(opt, "-S")) {
+                } else if (match_any(opt, "-S")) {
                     corner_sb = true;
-                } else if (match(opt, "-d", "--draw-corners")) {
+                } else if (match_any(opt, "-d", "--draw-corners")) {
                     draw_corners = true;
-                } else if (match(opt, "-D", "--detect")) {
+                } else if (match_any(opt, "-D", "--detect")) {
                     detect_size = true;
-                } else if (match(opt, "-e", "--extension")) {
-                    if (i + 1 == argc) return false;
+                } else if (match_any(opt, "-e", "--extension")) {
+                    if (i + 1 == argc) {
+                        return false;
+                    }
                     img_ext = argv[++i];
-                } else if (match(opt, "-r", "--report")) {
-                    if (i + 1 == argc) return false;
+                } else if (match_any(opt, "-r", "--report")) {
+                    if (i + 1 == argc) {
+                        return false;
+                    }
                     report = argv[++i];
-                } else if (match(opt, "-s", "--size")) {
-                    if (i + 1 == argc) return false;
+                } else if (match_any(opt, "-s", "--size")) {
+                    if (i + 1 == argc) {
+                        return false;
+                    }
                     const auto s = std::string_view{argv[++i]};
                     const auto x_pos = s.find('x');
-                    if (x_pos == std::string_view::npos) return false;
+                    if (x_pos == std::string_view::npos) {
+                        return false;
+                    }
                     int rows, cols;
                     if (!parse(s.substr(0, x_pos), rows) || !parse(s.substr(x_pos + 1), cols)) {
                         return false;
                     }
                     pattern_size.emplace(cols, rows);
-                } else if (match(opt, "-m", "--max-size")) {
-                    if (i + 1 == argc)
+                } else if (match_any(opt, "-m", "--max-size")) {
+                    if (i + 1 == argc) {
                         return false;
+                    }
                     if (!parse(argv[++i], max_detect_size)) {
                         return false;
                     }
-                } else if (match(opt, "-V", "--version")) {
+                } else if (match_any(opt, "-V", "--version")) {
                     print_version = true;
                     break;
-                } else if (match(opt, "-h", "--help")) {
+                } else if (match_any(opt, "-h", "--help")) {
                     print_help = true;
                     break;
                 } else { // positional arg

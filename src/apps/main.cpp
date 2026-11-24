@@ -115,18 +115,19 @@ int main(int argc, char** argv)
     int ix_global_opt_end = 1;
     for (; ix_global_opt_end < argc; ++ix_global_opt_end) {
         const std::string_view arg = argv[ix_global_opt_end];
+        using util::match_any;
         if (arg.front() != '-') {
             break;
-        } else if (match(arg, "-l", "--list-applets")) {
+        } else if (match_any(arg, "-l", "--list-applets")) {
             std::print(applets_print);
             return 0;
-        } else if (match(arg, "-h", "--help")) {
+        } else if (match_any(arg, "-h", "--help")) {
             print_help();
             return 0;
-        } else if (match(arg, "-V", "--version")) {
+        } else if (match_any(arg, "-V", "--version")) {
             version::print_info();
             return 0;
-        } else if (match(arg, "-v", "--verbose")) {
+        } else if (match_any(arg, "-v", "--verbose")) {
             g_verbosity += (g_verbosity < max_verbosity);
         } else {
             std::println(stderr, "Invalid global option: {}", arg);
