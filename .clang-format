@@ -1,6 +1,6 @@
 BasedOnStyle: LLVM
 
-ColumnLimit: 120
+ColumnLimit: 160
 
 Standard: c++23
 SortIncludes:
@@ -44,7 +44,7 @@ AllowShortCompoundRequirementOnASingleLine: true
 AlignArrayOfStructures: Right
 AlignEscapedNewlines: Left
 
-SpacesInAngles: Leave
+SpacesInAngles: Never
 
 AlignConsecutiveAssignments:
   Enabled:          false

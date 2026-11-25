@@ -20,16 +20,16 @@ namespace {
 
 // Check for applet names.
 static_assert(std::ranges::all_of(applets,
-    // A condition that must evaluate to true for all applets.
     [](const Applet& a) {
         // Or use ranges::concat from C++26.
         std::string allowed_chars = "_-";
-        auto a2z = std::views::iota('a', static_cast<char>('z' + 1));
-        allowed_chars.append_range(a2z);
-        //allowed_chars.append_range(std::views::iota('A', static_cast<char>('Z' + 1)));
+        auto a_to_z = std::views::iota('a', static_cast<char>('z' + 1));
+        allowed_chars.append_range(a_to_z);
         allowed_chars.append_range(std::views::iota('0', static_cast<char>('9' + 1)));
-        return std::ranges::all_of(a.name, [&](char c){ return std::ranges::contains(allowed_chars, c); })
-               && std::ranges::contains(a2z, a.name.front());
+        return std::ranges::all_of(a.name,
+            [&](char c){
+                return std::ranges::contains(allowed_chars, c);
+            }) && std::ranges::contains(a_to_z, a.name.front());
     }
 ), "Applet names failed checks.");
 
@@ -88,13 +88,11 @@ constexpr Level v_to_log_level(int verbosity) noexcept {
 
 constexpr std::string_view base_name = "clst";
 
-void print_help() {
-    std::print(
-R"^^({0}: Unified command-line applets dispatcher.
+void print_help(std::FILE* fp = stdout) {
+    std::print(fp,
+R"^^({0}: Unified command-line applets dispatcher
 
-Usage: {0} [GLOBAL_OPTIONS...] <applet> [APPLET_OPTIONS...]
-
-Available applets: {1}.
+Usage: {0} [GLOBAL_OPTIONS...] <applet> [APPLET_ARGS...]
 
 Global options:
   -l, --list-applets  Print all available applets, one per line
@@ -102,9 +100,9 @@ Global options:
   -h, --help          Show help message
   -V, --version       Display version information
 
+Available applets: {1}.
 Hint: A partial prefix can be used to select the applet, provided that the prefix is unique.
-)^^",
-    base_name, applets_list);
+)^^", base_name, applets_list);
 }
 
 } // namespace
@@ -173,8 +171,8 @@ int main(int argc, char** argv)
         return v_to_log_level(g_verbosity);
     }();
     log::get_sink().level = log_level;
-    CLST_LOG_DEBUG("Clst runtime log level set to {}. Compile-time log level is {}", log::label(log_level), log::label(log::to_level(CLST_LOG_LEVEL)));
-    CLST_LOG_INFO("Verbosity={}.", g_verbosity);
+    CLST_LOG_DEBUG("clst runtime log level set to {}. Compile-time log level is {}.", log::label(log_level), log::label(log::to_level(CLST_LOG_LEVEL)));
+    CLST_LOG_INFO("verbosity={}.", g_verbosity);
 
     CLST_LOG_DEBUG("Entering applet \"{}\"...", target->name);
     return target->func(argc - ix_global_opt_end, argv + ix_global_opt_end);

@@ -22,7 +22,7 @@ namespace {
 const auto& help_msg =
 R"^^(inspect: Extract and display camera information from video files.
 
-Usage: inspect <FILES...> [OPTIONS...]
+Usage: inspect [OPTIONS...] <FILES...>
 
 Options:
  -m, --metadata-only    Only extract metadata, skip sensor data and other streaming data.
@@ -101,7 +101,7 @@ const Value* find_value(const GroupedVarMap& gmap, std::string_view prop) noexce
 
 int clst::main_clst(int argc, char** argv) noexcept
 {
-    std::vector<const char*> files;
+    std::vector<const char*> input_filenames;
     bool metadata_only = false;
     bool dump_gyro = false;
     bool dump_quat = false;
@@ -116,7 +116,7 @@ int clst::main_clst(int argc, char** argv) noexcept
         for (int i = 1; i < argc && !err_flag; ++i) {
             using util::match_any;
             if (positional_only) {
-                files.push_back(argv[i]);
+                input_filenames.push_back(argv[i]);
             } else if (match_any(argv[i], "--")) { // After '--', all arguments are treated as input file names.
                 positional_only = true;
             } else if (match_any(argv[i], "-m", "--metadata-only")) {
@@ -151,11 +151,11 @@ int clst::main_clst(int argc, char** argv) noexcept
                 print_version = true;
                 break;
             } else {
-                files.push_back(argv[i]);
+                input_filenames.push_back(argv[i]);
             }
         }
 
-        if (err_flag || (files.empty() && !print_version && !show_help)) {
+        if (err_flag || (input_filenames.empty() && !print_version && !show_help)) {
             std::print(stderr, "Invaild argument.\nPass '-h' for help.\n");
             return 2;
         }
@@ -179,80 +179,71 @@ int clst::main_clst(int argc, char** argv) noexcept
     util::Timer timer;
     const bool stdout_is_colorterm = sys::is_colorterm(stdout);
     bool has_error = false;
-    for (auto ix = 0uz; ix < files.size(); ++ix) {
-        const auto& file = files[ix];
-        CLST_LOG_DEBUG("Parsing file {}...", file);
+    for (auto ix = 0uz; ix < input_filenames.size(); ++ix) {
+        const auto& filename = input_filenames[ix];
+        CLST_LOG_DEBUG("Parsing file {}...", filename);
         timer.tic();
-        const auto info = detect(file, metadata_only);
+        const auto info = detect(filename, metadata_only);
         const auto time_detect = timer.toc();
-        if (ix > 0) {
-            std::putchar('\n');
-        }
 
-        CLST_LOG_INFO("File {} parsed in {:.3f} ms", file, time_detect * 1e3);
-        if (stdout_is_colorterm) {
-            const std::string_view status_code = info? "\033[1;48;5;28m" : "\033[1;41m";
-            std::print("{}{} \033[22;48;5;230;38;5;235m{}\033[0m:", status_code, ix+1, file);
-        } else {
-            std::print("{}: {}:", ix+1, file);
+        CLST_LOG_INFO("File {} parsed in {:.3f} ms", filename, time_detect * 1e3);
+        static constexpr auto width = 30;
+        if (input_filenames.size() > 1) {
+            if (stdout_is_colorterm) {
+                std::print("\033[1;4mFile {}\033[22m: {}\033[0m\n", ix + 1, filename);
+            } else {
+                std::print("File {}: {}\n", ix + 1, filename);
+            }
         }
         if (!info) {
-            std::print(" Failed to extract data, or input file is invalid.\n");
+            std::print("Failed to extract data, or input file is invalid.\n");
             has_error = true;
-        } else {
-            std::putchar('\n');
-        }
-
-        if (info) {
-            if (show_property) {
-                const auto val = find_value(info->extras, show_property);
-                // Display the property
-                if (!val) {
-                    std::println("{}: Property not found!", show_property);
-                    has_error = true;
-                } else {
-                    std::println("{}: {}", show_property, to_string(*val));
-                }
+        } else if (show_property) {
+            const auto val = find_value(info->extras, show_property);
+            // Display the property
+            if (!val) {
+                std::println("Property not found: {}", show_property);
+                has_error = true;
             } else {
-                static constexpr auto width = 30;
-                std::print("{:<{}}: {}\n", "Camera Vendor", width, to_string(info->vendor));
+                std::println("{}: {}", show_property, to_string(*val));
+            }
+        } else {
+            std::print("{:<{}}: {}\n", "Camera Vendor", width, to_string(info->vendor));
 
-                for (const auto& [group, map] : info->extras) {
-                    if (stdout_is_colorterm) {
-                        std::print("\033[33m");
-                    }
-                    std::print("<Group: {}>\n", to_string(group));
-                    if (stdout_is_colorterm) {
-                        std::print("\033[0m");
-                    }
-                    if (raw_output) {
-                        std::cout << map << '\n';
-                    } else {
-                        for (const auto& [key, value] : map) {
-                            if (stdout_is_colorterm) {
-                                std::print("  \033[36m{:<{}}\033[0m", to_string(key), width - 2);
-                            } else {
-                                std::print("  {:<{}}", to_string(key), width - 2);
-                            }
-                            std::print(": {}\n", to_string(value, max_vec_len));
+            for (const auto& [group, map] : info->extras) {
+                if (stdout_is_colorterm) {
+                    std::print("\033[33m");
+                }
+                std::print("<Group: {}>\n", to_string(group));
+                if (stdout_is_colorterm) {
+                    std::print("\033[0m");
+                }
+                if (raw_output) {
+                    std::cout << map << '\n';
+                } else {
+                    for (const auto& [key, value] : map) {
+                        if (stdout_is_colorterm) {
+                            std::print("  \033[36m{:<{}}\033[0m", to_string(key), width - 2);
+                        } else {
+                            std::print("  {:<{}}", to_string(key), width - 2);
                         }
+                        std::print(": {}\n", to_string(value, max_vec_len));
                     }
                 }
             }
-
-            // dump data to file
             if (dump_gyro) {
                 const auto gyro = info->extras.get<types::GyroVec>(GroupId::SensorData, KeyId::GyroData);
                 if (gyro) {
-                    const std::string filename = std::string(file) += "_gyro.txt";
-                    std::ofstream ofs(filename);
+                    CLST_LOG_INFO("Dumping gyro data from {}", filename);
+                    const std::string out_filename = std::string(filename) += "_gyro.txt";
+                    std::ofstream ofs(out_filename);
                     // ofs.precision(17);
                     if (ofs) {
                         std::println(ofs, "time, gyro_x, gyro_y, gyro_z");
                         for (const auto& entry : *gyro) {
                             std::println(ofs, "{:n}", entry); // std::format defaults to round-trip format for FP
                         }
-                        CLST_LOG_NOTICE("Gyro data saved to {}", filename);
+                        CLST_LOG_NOTICE("Gyro data saved to {}", out_filename);
                     }
                 } else {
                     std::println(stderr, "Could not find gyro data.");
@@ -262,20 +253,24 @@ int clst::main_clst(int argc, char** argv) noexcept
             if (dump_quat) {
                 const auto quat = info->extras.get<types::QuaternionVec>(GroupId::SensorData, KeyId::CameraQuaternionData);
                 if (quat) {
-                    const auto filename  = std::string(file) += "_quat.txt";
-                    std::ofstream ofs(filename);
+                    CLST_LOG_INFO("Dumping quaternion data from {}", filename);
+                    const auto out_filename = std::string(filename) += "_quat.txt";
+                    std::ofstream ofs(out_filename);
                     if (ofs) {
                         std::println(ofs, "qx, qy, qz, qw");
                         for (const auto& entry : *quat) {
                             std::println(ofs, "{:n}", entry);
                         }
-                        CLST_LOG_NOTICE("Quaternion data saved to {}", filename);
+                        CLST_LOG_NOTICE("Quaternion data saved to {}", out_filename);
                     }
                 } else {
                     std::println(stderr, "Could not find quaternion data.");
                     has_error = true;
                 }
             }
+        }
+        if (ix + 1 != input_filenames.size()) {
+            std::putchar('\n');
         }
     }
 
