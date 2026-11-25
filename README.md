@@ -12,7 +12,7 @@ written in C++.
 
 Download from GitHub Actions:
 
-[![CI](https://github.com/kya8/clst/actions/workflows/ci.yml/badge.svg?event=push)](https://github.com/kya8/clst/actions/workflows/ci.yml)
+[![CI](https://github.com/kya8/celestite/actions/workflows/ci.yml/badge.svg?event=push)](https://github.com/kya8/celestite/actions/workflows/ci.yml)
 
 * `clst inspet`: Inspect and dump various information and metadata extracted from video files.
 
