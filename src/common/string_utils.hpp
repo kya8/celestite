@@ -10,11 +10,12 @@
 namespace util {
 
 template<std::convertible_to<std::string_view> T>
-constexpr decltype(auto) to_sv(const T& sv) noexcept {
+constexpr decltype(auto) to_sv(const T& src) noexcept
+{
     if constexpr (std::same_as<T, std::string_view>) {
-        return sv;
+        return src;
     } else {
-        return std::string_view{sv};
+        return std::string_view{src};
     }
 }
 
@@ -28,7 +29,9 @@ constexpr bool match_any(std::string_view ref, const Ts& ...args) noexcept
 template<std::convertible_to<std::string_view> ...Ts>
 bool sieq(std::string_view ref, const Ts& ...args) noexcept
 {
-    return (std::ranges::equal(ref, to_sv(args), [](char l, char r) { return std::tolower(l) == std::tolower(r); }) && ...);
+    return (std::ranges::equal(ref, to_sv(args), [](unsigned char l, unsigned char r) {
+        return std::tolower(l) == std::tolower(r);
+    }) && ...);
 }
 
 template<std::convertible_to<std::string_view> ...Ts>

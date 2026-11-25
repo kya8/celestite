@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <string>
+#include <cctype>
 
 namespace slate {
 
@@ -55,21 +56,45 @@ consteval FourCC operator""_fc(const char* s, std::size_t len)
     }
     return static_cast<std::uint32_t>(s[0]) << 24 |
            static_cast<std::uint32_t>(s[1]) << 16 |
-           static_cast<std::uint32_t>(s[2]) << 8 |
+           static_cast<std::uint32_t>(s[2]) << 8  |
            static_cast<std::uint32_t>(s[3]);
 }
 
 } // namespace fourcc_literal
 
-inline std::string
+/**
+ * Convert a u32 FOURCC tag to a string.
+ * @tparam Inv If true, the string begins with the LSB (as with GPMF tags). Otherwise it begins with the MSB.
+ * @tparam If true, non-printable characters are substituted with '?'.
+ */
+template<bool Inv = true, bool Printable = true>
+constexpr std::string // std::fixed_string?
 fourcc_str(std::uint32_t u) noexcept
 {
-    return {
-        char(u >> 24 & 0xffu),  // implementation-defined, if out of range for char. We don't care about this.
+    // Printable chars in "C" locale.
+    // https://en.cppreference.com/cpp/string/byte/isprint
+    // static constexpr std::string_view printable = "0123456789"
+    //                                               "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    //                                               "abcdefghijklmnopqrstuvwxyz"
+    //                                               "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~ ";
+    char s[4]{
+        char(u >> 24 & 0xffu), // MSB first
         char(u >> 16 & 0xffu),
         char(u >> 8  & 0xffu),
         char(u       & 0xffu)
     };
+    if constexpr (Printable) {
+        for (char& c : s) {
+            if (!std::isprint(static_cast<unsigned char>(c))) {
+                c = '?';
+            }
+        }
+    }
+    if constexpr (Inv) {
+        return {s[3], s[2], s[1], s[0]};
+    } else {
+        return {s[0], s[1], s[2], s[3]};
+    }
 }
 
 } // namespace slate
