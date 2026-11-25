@@ -1,5 +1,5 @@
-#ifndef SLATE_COMMON_RANGE_UTILS_HPP
-#define SLATE_COMMON_RANGE_UTILS_HPP
+#ifndef CLST_COMMON_RANGE_UTILS_HPP
+#define CLST_COMMON_RANGE_UTILS_HPP
 
 #include <ranges>
 #include <array>
@@ -43,4 +43,4 @@ consteval auto range_to_array()
     }(std::make_index_sequence<std::ranges::distance(MakeRange())>{});
 }
 
-#endif /* SLATE_COMMON_RANGE_UTILS_HPP */
+#endif /* CLST_COMMON_RANGE_UTILS_HPP */

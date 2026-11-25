@@ -1,5 +1,5 @@
 #include "applets.hpp"
-#include <slate/log.hpp>
+#include <clst/log.hpp>
 #include "string_utils.hpp"
 #include "version.hpp"
 
@@ -14,7 +14,7 @@
 #include <cstdlib>  // getenv
 #include <cassert>
 
-using namespace slate;
+using namespace clst;
 
 namespace {
 
@@ -80,13 +80,13 @@ constexpr auto applets_print = make_applets_list<"\n", true>();
 
 using log::Level;
 // Default log level integer when verbose is 0.
-constexpr auto v0_log_level = SLATE_LOG_LEVEL_WARN;
-constexpr auto max_verbosity = v0_log_level - SLATE_LOG_LEVEL_MIN;
+constexpr auto v0_log_level = CLST_LOG_LEVEL_WARN;
+constexpr auto max_verbosity = v0_log_level - CLST_LOG_LEVEL_MIN;
 constexpr Level v_to_log_level(int verbosity) noexcept {
     return log::to_level(v0_log_level - verbosity);
 }
 
-constexpr std::string_view base_name = "slate";
+constexpr std::string_view base_name = "clst";
 
 void print_help() {
     std::print(
@@ -162,20 +162,20 @@ int main(int argc, char** argv)
     assert(target != nullptr);
 
     const Level log_level = []{
-        constexpr const auto& env_key = "SLATE_LOG_LEVEL";
+        constexpr const auto& env_key = "CLST_LOG_LEVEL";
         // Log level from env var overrides log level mapped from verbosity.
         if (const auto env_val = std::getenv(env_key)) {
             if (const auto lvl = log::find_level(env_val)) {
                 return *lvl;
             }
-            //SLATE_LOG_WARN("env {}={} is not a known log level", env_key, env_val);
+            //CLST_LOG_WARN("env {}={} is not a known log level", env_key, env_val);
         }
         return v_to_log_level(g_verbosity);
     }();
     log::get_sink().level = log_level;
-    SLATE_LOG_DEBUG("Slate runtime log level set to {}. Compile-time log level is {}", log::label(log_level), log::label(log::to_level(SLATE_LOG_LEVEL)));
-    SLATE_LOG_INFO("Verbosity={}.", g_verbosity);
+    CLST_LOG_DEBUG("Clst runtime log level set to {}. Compile-time log level is {}", log::label(log_level), log::label(log::to_level(CLST_LOG_LEVEL)));
+    CLST_LOG_INFO("Verbosity={}.", g_verbosity);
 
-    SLATE_LOG_DEBUG("Entering applet \"{}\"...", target->name);
+    CLST_LOG_DEBUG("Entering applet \"{}\"...", target->name);
     return target->func(argc - ix_global_opt_end, argv + ix_global_opt_end);
 }

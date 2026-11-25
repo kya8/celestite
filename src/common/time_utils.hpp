@@ -1,5 +1,5 @@
-#ifndef SLATE_COMMON_TIME_UTILS_HPP
-#define SLATE_COMMON_TIME_UTILS_HPP
+#ifndef CLST_COMMON_TIME_UTILS_HPP
+#define CLST_COMMON_TIME_UTILS_HPP
 
 #include <ctime>
 #include <string>
@@ -18,4 +18,4 @@ std::string format_time(const std::tm& tm, const char* fmt);
 
 } // namespace util
 
-#endif /* SLATE_COMMON_TIME_UTILS_HPP */
+#endif /* CLST_COMMON_TIME_UTILS_HPP */

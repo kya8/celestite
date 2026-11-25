@@ -1,5 +1,5 @@
-#ifndef SLATE_COMMON_HELPER_TEMPLATES_HPP
-#define SLATE_COMMON_HELPER_TEMPLATES_HPP
+#ifndef CLST_COMMON_HELPER_TEMPLATES_HPP
+#define CLST_COMMON_HELPER_TEMPLATES_HPP
 
 #include <type_traits>
 
@@ -64,4 +64,4 @@ struct append_unique_types<TMPL<Ts...>, U, Us...> : std::conditional_t<(std::dis
                                                                 append_unique_types<TMPL<Ts..., U>, Us...>>
 {};
 
-#endif /* SLATE_COMMON_HELPER_TEMPLATES_HPP */
+#endif /* CLST_COMMON_HELPER_TEMPLATES_HPP */

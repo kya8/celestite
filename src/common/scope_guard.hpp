@@ -1,9 +1,9 @@
-#ifndef SLATE_COMMON_SCOPE_GUARD_HPP
-#define SLATE_COMMON_SCOPE_GUARD_HPP
+#ifndef CLST_COMMON_SCOPE_GUARD_HPP
+#define CLST_COMMON_SCOPE_GUARD_HPP
 
 #include <utility> // std::forward
 
-namespace slate::util {
+namespace clst::util {
 
 template<class F>
 class ScopeGuard {
@@ -28,7 +28,7 @@ private:
 template<typename T>
 ScopeGuard(T&&) -> ScopeGuard<T>;
 
-} // namespace slate::util
+} // namespace clst::util
 
 
-#endif /* SLATE_COMMON_SCOPE_GUARD_HPP */
+#endif /* CLST_COMMON_SCOPE_GUARD_HPP */

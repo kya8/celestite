@@ -1,7 +1,7 @@
-#ifndef SLATE_COMMON_VERSION_HPP
-#define SLATE_COMMON_VERSION_HPP
+#ifndef CLST_COMMON_VERSION_HPP
+#define CLST_COMMON_VERSION_HPP
 
-namespace slate::version {
+namespace clst::version {
 
 struct Version {
     const char* git_desc;
@@ -24,6 +24,6 @@ struct Version {
 const Version& get() noexcept;
 void print_info() noexcept;
 
-} // namespace slate::version
+} // namespace clst::version
 
-#endif /* SLATE_COMMON_VERSION_HPP */
+#endif /* CLST_COMMON_VERSION_HPP */

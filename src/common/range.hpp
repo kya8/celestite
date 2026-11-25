@@ -1,5 +1,5 @@
-#ifndef SLATE_COMMON_RANGE_HPP
-#define SLATE_COMMON_RANGE_HPP
+#ifndef CLST_COMMON_RANGE_HPP
+#define CLST_COMMON_RANGE_HPP
 
 #include <type_traits>
 #include <cstddef>  // ptrdiff_t
@@ -68,4 +68,4 @@ auto make_index(const T& container) noexcept(noexcept(std::size(container)))
 }
 
 
-#endif /* SLATE_COMMON_RANGE_HPP */
+#endif /* CLST_COMMON_RANGE_HPP */

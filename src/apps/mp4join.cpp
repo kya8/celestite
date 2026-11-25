@@ -1,5 +1,5 @@
 #include "applets.hpp"
-#include <slate/mp4/mp4_merge.hpp>
+#include <clst/mp4/mp4_merge.hpp>
 #include "version.hpp"
 #include <print>
 #include <cstdio>
@@ -53,7 +53,7 @@ Options:
 
 } // namespace
 
-int slate::main_mp4join(int argc, char** argv) noexcept
+int clst::main_mp4join(int argc, char** argv) noexcept
 {
     std::vector<const char*> inputs;
     fs::path output;
@@ -87,7 +87,7 @@ int slate::main_mp4join(int argc, char** argv) noexcept
         }
 
         if (print_version) {
-            using namespace slate::version;
+            using namespace clst::version;
             print_info();
             return 0;
         }
@@ -118,7 +118,7 @@ int slate::main_mp4join(int argc, char** argv) noexcept
         }
     }
 
-    using namespace slate::mp4;
+    using namespace clst::mp4;
     MergeResult ret;
     std::atomic<bool> done = false;
     std::atomic<int> prog = -1;

@@ -1,5 +1,5 @@
-#ifndef SLATE_COMMON_TIMER_HPP
-#define SLATE_COMMON_TIMER_HPP
+#ifndef CLST_COMMON_TIMER_HPP
+#define CLST_COMMON_TIMER_HPP
 
 #include <chrono>
 
@@ -28,4 +28,4 @@ public:
 
 } // namespace util
 
-#endif /* SLATE_COMMON_TIMER_HPP */
+#endif /* CLST_COMMON_TIMER_HPP */

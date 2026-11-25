@@ -2,9 +2,9 @@
 #include <filesystem>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
-#include <slate/detect.hpp>
-#include <slate/extra/insta360_params.hpp>
-#include <slate/extra/insta360_tf.hpp>
+#include <clst/detect.hpp>
+#include <clst/extra/insta360_params.hpp>
+#include <clst/extra/insta360_tf.hpp>
 #include <print>
 #include <cstdio>
 #include <fstream>
@@ -298,7 +298,7 @@ struct Cfg {
         return !err_flag;
     }
 
-    bool process_dir(int lens_id, const slate::insta360::Params& params, auto& pool) noexcept try
+    bool process_dir(int lens_id, const clst::insta360::Params& params, auto& pool) noexcept try
     {
         if (mode) {
             lens_id = 0;
@@ -461,7 +461,7 @@ struct Cfg {
         const bool args_ok = load_args(argc, argv);
 
         if (print_version && args_ok) {
-            using namespace slate::version;
+            using namespace clst::version;
             print_info();
             return 0;
         }
@@ -497,7 +497,7 @@ struct Cfg {
             return 1;
         }
 
-        using namespace slate;
+        using namespace clst;
 
         insta360::Params params;
         const auto cam_info = detect(video_file.c_str(), true);
@@ -588,7 +588,7 @@ struct Cfg {
 
 } // unnamed namespace
 
-int slate::main_insta360_normalize(int argc, char** argv) noexcept
+int clst::main_insta360_normalize(int argc, char** argv) noexcept
 {
     return Cfg{}.run(argc, argv);
 }

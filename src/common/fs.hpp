@@ -1,5 +1,5 @@
-#ifndef SLATE_COMMON_FS_HPP
-#define SLATE_COMMON_FS_HPP
+#ifndef CLST_COMMON_FS_HPP
+#define CLST_COMMON_FS_HPP
 
 #include <filesystem>
 #include <vector>
@@ -47,4 +47,4 @@ decltype(auto) operator|(T&& lhs, F&& func) {
 
 } //namespace util
 
-#endif /* SLATE_COMMON_FS_HPP */
+#endif /* CLST_COMMON_FS_HPP */

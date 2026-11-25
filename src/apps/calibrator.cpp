@@ -189,7 +189,7 @@ auto format_mat(const T& mat, cv::Formatter::FormatType fmt = cv::Formatter::FMT
 } // namespace
 
 
-int slate::main_calibrator(int argc, char** argv) noexcept
+int clst::main_calibrator(int argc, char** argv) noexcept
 try
 {
     fs::path dir, img_ext, report;
@@ -279,7 +279,7 @@ try
         }
 
         if (print_version) {
-            using namespace slate::version;
+            using namespace clst::version;
             print_info();
             return 0;
         }

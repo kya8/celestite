@@ -1,5 +1,5 @@
-#ifndef SLATE_COMMON_TERMCOLOR_HPP
-#define SLATE_COMMON_TERMCOLOR_HPP
+#ifndef CLST_COMMON_TERMCOLOR_HPP
+#define CLST_COMMON_TERMCOLOR_HPP
 
 #include <array>
 #include <string_view>
@@ -340,4 +340,4 @@ struct std::formatter<tc::ConditionalOutputWrapper<T, F, Impl...>> : std::format
 #endif
 
 
-#endif /* SLATE_COMMON_TERMCOLOR_HPP */
+#endif /* CLST_COMMON_TERMCOLOR_HPP */

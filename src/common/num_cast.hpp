@@ -1,5 +1,5 @@
-#ifndef SLATE_COMMON_NUM_CAST_HPP
-#define SLATE_COMMON_NUM_CAST_HPP
+#ifndef CLST_COMMON_NUM_CAST_HPP
+#define CLST_COMMON_NUM_CAST_HPP
 
 #include <type_traits>
 #include <limits>
@@ -55,4 +55,4 @@ constexpr Tgt num_cast_ex(Src src) noexcept(is_lossless_num_cast<Src, Tgt>)
 
 } // namespace util
 
-#endif // SLATE_COMMON_NUM_CAST_HPP
+#endif // CLST_COMMON_NUM_CAST_HPP

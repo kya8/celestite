@@ -1,5 +1,5 @@
-#include <slate/detect.hpp>
-#include <slate/log.hpp>
+#include <clst/detect.hpp>
+#include <clst/log.hpp>
 #include "applets.hpp"
 #include "version.hpp"
 #include "sys_utils.hpp"
@@ -15,7 +15,7 @@
 #include <iostream>
 #include <ranges>
 
-using namespace slate;
+using namespace clst;
 
 namespace {
 
@@ -99,7 +99,7 @@ const Value* find_value(const GroupedVarMap& gmap, std::string_view prop) noexce
 
 } // namespace
 
-int slate::main_slate(int argc, char** argv) noexcept
+int clst::main_clst(int argc, char** argv) noexcept
 {
     std::vector<const char*> files;
     bool metadata_only = false;
@@ -167,13 +167,13 @@ int slate::main_slate(int argc, char** argv) noexcept
     }
 
     if (print_version) {
-        using namespace slate::version;
+        using namespace clst::version;
         print_info();
         return 0;
     }
 
     if (metadata_only) {
-        SLATE_LOG_NOTICE("Reading global metadata only. Streaming sensor data might be skipped.");
+        CLST_LOG_NOTICE("Reading global metadata only. Streaming sensor data might be skipped.");
     }
 
     util::Timer timer;
@@ -181,7 +181,7 @@ int slate::main_slate(int argc, char** argv) noexcept
     bool has_error = false;
     for (auto ix = 0uz; ix < files.size(); ++ix) {
         const auto& file = files[ix];
-        SLATE_LOG_DEBUG("Parsing file {}...", file);
+        CLST_LOG_DEBUG("Parsing file {}...", file);
         timer.tic();
         const auto info = detect(file, metadata_only);
         const auto time_detect = timer.toc();
@@ -189,7 +189,7 @@ int slate::main_slate(int argc, char** argv) noexcept
             std::putchar('\n');
         }
 
-        SLATE_LOG_INFO("File {} parsed in {:.3f} ms", file, time_detect * 1e3);
+        CLST_LOG_INFO("File {} parsed in {:.3f} ms", file, time_detect * 1e3);
         if (stdout_is_colorterm) {
             const std::string_view status_code = info? "\033[1;48;5;28m" : "\033[1;41m";
             std::print("{}{} \033[22;48;5;230;38;5;235m{}\033[0m:", status_code, ix+1, file);
@@ -252,7 +252,7 @@ int slate::main_slate(int argc, char** argv) noexcept
                         for (const auto& entry : *gyro) {
                             std::println(ofs, "{:n}", entry); // std::format defaults to round-trip format for FP
                         }
-                        SLATE_LOG_NOTICE("Gyro data saved to {}", filename);
+                        CLST_LOG_NOTICE("Gyro data saved to {}", filename);
                     }
                 } else {
                     std::println(stderr, "Could not find gyro data.");
@@ -269,7 +269,7 @@ int slate::main_slate(int argc, char** argv) noexcept
                         for (const auto& entry : *quat) {
                             std::println(ofs, "{:n}", entry);
                         }
-                        SLATE_LOG_NOTICE("Quaternion data saved to {}", filename);
+                        CLST_LOG_NOTICE("Quaternion data saved to {}", filename);
                     }
                 } else {
                     std::println(stderr, "Could not find quaternion data.");

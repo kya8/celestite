@@ -1,5 +1,5 @@
-#ifndef SLATE_COMMON_CONQUEUE_HPP
-#define SLATE_COMMON_CONQUEUE_HPP
+#ifndef CLST_COMMON_CONQUEUE_HPP
+#define CLST_COMMON_CONQUEUE_HPP
 
 #include <deque>
 #include <mutex>
@@ -111,4 +111,4 @@ public:
     }
 };
 
-#endif /* SLATE_COMMON_CONQUEUE_HPP */
+#endif /* CLST_COMMON_CONQUEUE_HPP */

@@ -1,5 +1,5 @@
-#ifndef SLATE_COMMON_PTAG_HPP
-#define SLATE_COMMON_PTAG_HPP
+#ifndef CLST_COMMON_PTAG_HPP
+#define CLST_COMMON_PTAG_HPP
 
 namespace util {
 
@@ -24,4 +24,4 @@ inline constexpr auto ptag_top = ptag<128>;
 } // namespace util
 
 
-#endif /* SLATE_COMMON_PTAG_HPP */
+#endif /* CLST_COMMON_PTAG_HPP */

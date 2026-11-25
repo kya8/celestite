@@ -1,7 +1,7 @@
 #include "test.h"
-#include <slate/varmap.hpp>
+#include <clst/varmap.hpp>
 
-using namespace slate;
+using namespace clst;
 
 namespace {
 
@@ -23,19 +23,19 @@ void static_checks()
 template<typename T>
 auto& test_lookup(const VarMap& map, const auto& ...keys)
 {
-    SLATE_ASSERT(map.get(keys...));
+    CLST_ASSERT(map.get(keys...));
     auto p = map.get<T>(keys...);
-    SLATE_ASSERT(p);
-    SLATE_ASSERT_NOTHROW(map.get_ex<T>(keys...));
+    CLST_ASSERT(p);
+    CLST_ASSERT_NOTHROW(map.get_ex<T>(keys...));
     return *p;
 }
 
 template<typename T>
 void test_lookup_fail(const VarMap& map, const auto& ...keys)
 {
-    //SLATE_ASSERT(!map.get(keys...));
-    SLATE_ASSERT(!map.get<T>(keys...));
-    SLATE_ASSERT_THROW(map.get_ex<T>(keys...), std::out_of_range);
+    //CLST_ASSERT(!map.get(keys...));
+    CLST_ASSERT(!map.get<T>(keys...));
+    CLST_ASSERT_THROW(map.get_ex<T>(keys...), std::out_of_range);
 }
 
 void test_varmap_lookup()
@@ -47,13 +47,13 @@ void test_varmap_lookup()
     map["Map"] = VarMap{{KeyId::FPS, 60.0}, {KeyId::VideoTrackIdx, std::vector{0, 1}}, {"Codec", "av01"}};
 
     auto& model = test_lookup<std::string>(map, KeyId::CameraModel);
-    SLATE_ASSERT(model == model_name);
+    CLST_ASSERT(model == model_name);
     // Yay, simple lookup works!
 
     test_lookup<types::VecI32>(map, "Map", KeyId::VideoTrackIdx);
     test_lookup<std::string>(map, "Map", "Codec");
     auto& array = test_lookup<Array>(map, "Array");
-    SLATE_ASSERT(array[0] == 3.14);
+    CLST_ASSERT(array[0] == 3.14);
 
     test_lookup_fail<bool>(map, "Answer");
     test_lookup_fail<std::string>(map, KeyId::SubModel);

@@ -1,28 +1,28 @@
-#ifndef SLATE_TEST_H
-#define SLATE_TEST_H
+#ifndef CLST_TEST_H
+#define CLST_TEST_H
 
 // Macros for tests
 
 #include <stdio.h>
 #include <stdlib.h>
 
-#define SLATE_QUOTE(str) #str
-#define SLATE_STR(str) SLATE_QUOTE(str)
+#define CLST_QUOTE(str) #str
+#define CLST_STR(str) CLST_QUOTE(str)
 
-#define SLATE_ASSERT(COND)                                                                                                    \
+#define CLST_ASSERT(COND)                                                                                                    \
     do {                                                                                                                      \
         if (!(COND)) {                                                                                                        \
-            fprintf(stderr, "%s:%s: %s: Assertion `%s' failed!\n", __FILE__, SLATE_STR(__LINE__), __func__, SLATE_STR(COND)); \
+            fprintf(stderr, "%s:%s: %s: Assertion `%s' failed!\n", __FILE__, CLST_STR(__LINE__), __func__, CLST_STR(COND)); \
             exit(EXIT_FAILURE);                                                                                               \
         }                                                                                                                     \
     } while (0)
 
-#define SLATE_ASSERT_EQ(L, R) SLATE_ASSERT((L) == (R))
+#define CLST_ASSERT_EQ(L, R) CLST_ASSERT((L) == (R))
 
 
 #ifdef __cplusplus
 
-#define SLATE_ASSERT_THROW(EXPR, EXCEPTION)                                                                                       \
+#define CLST_ASSERT_THROW(EXPR, EXCEPTION)                                                                                       \
     do {                                                                                                                          \
         try {                                                                                                                     \
             (void)(EXPR); /* Silence unused warnings */                                                                           \
@@ -30,21 +30,21 @@
         catch (const EXCEPTION&) {                                                                                                \
             break;                                                                                                                \
         }                                                                                                                         \
-        fprintf(stderr, "%s:%s: Expected exception `%s' was not thrown!\n", __FILE__, SLATE_STR(__LINE__), SLATE_STR(EXCEPTION)); \
+        fprintf(stderr, "%s:%s: Expected exception `%s' was not thrown!\n", __FILE__, CLST_STR(__LINE__), CLST_STR(EXCEPTION)); \
         exit(EXIT_FAILURE);                                                                                                       \
     } while (0)
 
-#define SLATE_ASSERT_NOTHROW(EXPR)                                                                   \
+#define CLST_ASSERT_NOTHROW(EXPR)                                                                   \
     do {                                                                                             \
         try {                                                                                        \
             (void)(EXPR); /* Silence unused warnings */                                              \
         }                                                                                            \
         catch (...) {                                                                                \
-            fprintf(stderr, "%s:%s: Unexpected exception caught!\n", __FILE__, SLATE_STR(__LINE__)); \
+            fprintf(stderr, "%s:%s: Unexpected exception caught!\n", __FILE__, CLST_STR(__LINE__)); \
             exit(EXIT_FAILURE);                                                                      \
         }                                                                                            \
     } while (0)
 
 #endif // __cplusplus
 
-#endif /* SLATE_TEST_H */
+#endif /* CLST_TEST_H */

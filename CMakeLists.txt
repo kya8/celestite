@@ -9,14 +9,14 @@ endif()
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 set(X_VCPKG_APPLOCAL_DEPS_INSTALL ON) # let vcpkg install dependencies with install()
 
-project(slate
+project(clst
 LANGUAGES CXX
 VERSION 0.1.0)
 
 option(BUILD_SHARED_LIBS "Build shared library" OFF)
-option(SLATE_OPTIMIZED_X86_64 "Enable optimized x86-64 builds, targetting x86-64-v3 or equivalent." OFF)
-option(SLATE_BUILD_CLI_APPS "Build command line apps." ON)
-option(SLATE_ENABLE_TESTS "Build and run tests." ON)
+option(CLST_OPTIMIZED_X86_64 "Enable optimized x86-64 builds, targetting x86-64-v3 or equivalent." OFF)
+option(CLST_BUILD_CLI_APPS "Build command line apps." ON)
+option(CLST_ENABLE_TESTS "Build and run tests." ON)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -32,7 +32,7 @@ add_compile_options("$<$<AND:$<NOT:$<CXX_COMPILER_ID:MSVC>>,$<CONFIG:Release>>:-
 add_compile_options("$<IF:$<CXX_COMPILER_ID:MSVC>,/source-charset:utf-8,-finput-charset=utf-8>")
 
 # Optimized x86-64 build
-if(SLATE_OPTIMIZED_X86_64 AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64)$")
+if(CLST_OPTIMIZED_X86_64 AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64)$")
   include(CheckCXXCompilerFlag)
   check_cxx_compiler_flag("-march=x86-64-v3" COMPILER_SUPPORTS_MARCH_X86_64_V3)
   add_compile_options($<IF:$<CXX_COMPILER_ID:MSVC>,/arch:AVX2,$<GENEX_EVAL:$<IF:$<BOOL:${COMPILER_SUPPORTS_MARCH_X86_64_V3}>,-march=x86-64-v3,-march=haswell>>>)
@@ -62,8 +62,8 @@ endif()
 endif()
 
 # compile-time log level
-set(SLATE_LOG_LEVEL DEBUG CACHE STRING "Compile-time log level for slate.")
-add_compile_definitions("SLATE_LOG_LEVEL=SLATE_LOG_LEVEL_${SLATE_LOG_LEVEL}")
+set(CLST_LOG_LEVEL DEBUG CACHE STRING "Compile-time log level for clst.")
+add_compile_definitions("CLST_LOG_LEVEL=CLST_LOG_LEVEL_${CLST_LOG_LEVEL}")
 
 #-------- Version & Build info
 include(cmake/git-version.cmake)
@@ -75,20 +75,20 @@ configure_file(cmake/version.cpp.in ${GENERATED_SOURCE_DIR}/version.cpp @ONLY)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads REQUIRED)
 
-set(SLATE_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
-set(SLATE_PUBLIC_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
-set(SLATE_CMAKE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+set(CLST_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
+set(CLST_PUBLIC_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
+set(CLST_CMAKE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 include(cmake/tests/tests.cmake)
 
 add_subdirectory(third_party/gpmf-parser)
 add_subdirectory(src/common)
-add_subdirectory(src/slate)
-if(SLATE_BUILD_CLI_APPS)
+add_subdirectory(src/clst)
+if(CLST_BUILD_CLI_APPS)
 add_subdirectory(src/apps)
 endif()
 
-if(SLATE_ENABLE_TESTS)
+if(CLST_ENABLE_TESTS)
 include(CTest)
 add_subdirectory(test)
 endif()

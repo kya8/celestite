@@ -1,9 +1,9 @@
-#ifndef SLATE_APPS_APPLETS_HPP
-#define SLATE_APPS_APPLETS_HPP
+#ifndef CLST_APPS_APPLETS_HPP
+#define CLST_APPS_APPLETS_HPP
 
 #include <string_view>
 
-namespace slate {
+namespace clst {
 
 struct Applet {
     using Fn = int(int, char**);
@@ -12,13 +12,13 @@ struct Applet {
     // std::string_view desc{};
 };
 
-int main_slate(int argc, char** argv) noexcept;
+int main_clst(int argc, char** argv) noexcept;
 int main_calibrator(int argc, char** argv) noexcept;
 int main_insta360_normalize(int argc, char** argv) noexcept;
 int main_mp4join(int argc, char** argv) noexcept;
 
 inline constexpr Applet applets[] {
-    { "inspect"           , main_slate              },
+    { "inspect"           , main_clst              },
     { "mp4join"           , main_mp4join            },
     { "insta360_normalize", main_insta360_normalize },
     { "calibrator"        , main_calibrator         },
@@ -28,6 +28,6 @@ inline constexpr Applet applets[] {
 // Set it at application start.
 inline int g_verbosity = 0;
 
-} // namespace slate
+} // namespace clst
 
-#endif /* SLATE_APPS_APPLETS_HPP */
+#endif /* CLST_APPS_APPLETS_HPP */

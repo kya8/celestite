@@ -1,5 +1,5 @@
-#ifndef SLATE_COMMON_STRING_UTILS_HPP
-#define SLATE_COMMON_STRING_UTILS_HPP
+#ifndef CLST_COMMON_STRING_UTILS_HPP
+#define CLST_COMMON_STRING_UTILS_HPP
 
 #include <type_traits>
 #include <string_view>
@@ -43,4 +43,4 @@ constexpr bool imatch_any(std::string_view ref, const Ts& ...args) noexcept
 
 } // namespace util
 
-#endif /* SLATE_COMMON_STRING_UTILS_HPP */
+#endif /* CLST_COMMON_STRING_UTILS_HPP */
