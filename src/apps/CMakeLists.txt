@@ -16,7 +16,7 @@ add_executable(clst_applets ${clst_applets_source})
 
 set_target_properties(clst_applets PROPERTIES
     OUTPUT_NAME clst
-    RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin
+    RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}
 )
 
 target_link_libraries(clst_applets
@@ -26,13 +26,13 @@ PRIVATE
 
 install(TARGETS clst_applets)
 
+#[[
 # Create a symlink for bin/clst in the build tree
 add_custom_command(TARGET clst_applets POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E create_symlink bin/"$<TARGET_FILE_NAME:clst_applets>" "$<TARGET_FILE_NAME:clst_applets>"
     WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
 )
 
-#[[
 # Install symlinks for the multi-call binary
 foreach(name IN LISTS MULTI_CALL_NAMES)
     if(WIN32)
