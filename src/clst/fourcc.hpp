@@ -64,8 +64,8 @@ consteval FourCC operator""_fc(const char* s, std::size_t len)
 
 /**
  * Convert a u32 FOURCC tag to a string.
- * @tparam Inv If true, the string begins with the LSB (as with GPMF tags). Otherwise it begins with the MSB.
- * @tparam If true, non-printable characters are substituted with '?'.
+ * @tparam Inv If true, the string begins with the LSB. Otherwise it begins with the MSB.
+ * @tparam Printable If true, non-printable characters are substituted with '?'.
  */
 template<bool Inv = true, bool Printable = true>
 constexpr std::string // std::fixed_string?

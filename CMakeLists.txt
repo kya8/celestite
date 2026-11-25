@@ -81,7 +81,6 @@ set(CLST_CMAKE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 include(cmake/tests/tests.cmake)
 
-add_subdirectory(third_party/gpmf-parser)
 add_subdirectory(src/common)
 add_subdirectory(src/clst)
 if(CLST_BUILD_CLI_APPS)

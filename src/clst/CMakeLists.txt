@@ -35,7 +35,7 @@ PRIVATE
 )
 
 target_link_libraries(clst
-PRIVATE gpmf-parser protobuf::libprotobuf clst::common
+PRIVATE protobuf::libprotobuf clst::common
 PUBLIC Eigen3::Eigen # Insta360 transforms
 )
 

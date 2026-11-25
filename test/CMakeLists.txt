@@ -4,6 +4,9 @@ list(FILTER test_sources EXCLUDE REGEX "(^|/)_")
 create_test_sourcelist(driver_sources clst_tests_driver.cpp ${test_sources})
 
 add_executable(test_clst ${driver_sources})
+# Exercise the internal GPMF parser in both static and shared builds.
+target_sources(test_clst PRIVATE ${CLST_SRC_DIR}/clst/gpmf.cpp)
+target_include_directories(test_clst PRIVATE ${CLST_SRC_DIR})
 target_link_libraries(test_clst PRIVATE clst::clst)
 
 foreach(test ${test_sources})
