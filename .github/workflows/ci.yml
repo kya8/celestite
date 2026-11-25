@@ -120,7 +120,7 @@ jobs:
 
     - uses: actions/upload-artifact@v7
       with:
-        name: clst-${{ github.sha }}-${{ runner.os }}_${{ runner.arch }}-${{ matrix.build_type }}
+        name: celestite-${{ github.sha }}-${{ runner.os }}_${{ runner.arch }}-${{ matrix.build_type }}
         path: |
           ${{ steps.strings.outputs.build_dir }}/install-root/*
         # archive: false
