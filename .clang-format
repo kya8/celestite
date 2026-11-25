@@ -1,6 +1,10 @@
 BasedOnStyle: LLVM
 
-ColumnLimit: 160
+ColumnLimit: 120
+
+Standard: c++23
+SortIncludes:
+  Enabled: false
 
 UseTab: Never
 IndentWidth: 4
@@ -9,13 +13,17 @@ AccessModifierOffset: -4
 IndentCaseLabels: false
 NamespaceIndentation: None
 IndentPPDirectives: Leave
+IndentRequiresClause: false
+
+RequiresClausePosition: OwnLine
 
 SpaceAfterTemplateKeyword: false
 
 AllowShortIfStatementsOnASingleLine: WithoutElse
 AllowShortCaseLabelsOnASingleLine: true
-AlwaysBreakTemplateDeclarations: Yes
-AlwaysBreakAfterReturnType: All
+BreakTemplateDeclarations: Yes
+BreakAfterReturnType: Automatic
+#PenaltyReturnTypeOnItsOwnLine: 0
 AlwaysBreakAfterDefinitionReturnType: All
 
 FixNamespaceComments: true
@@ -26,12 +34,17 @@ ReferenceAlignment: Pointer
 
 AllowAllArgumentsOnNextLine: false
 AllowAllParametersOfDeclarationOnNextLine: true
-AlignAfterOpenBracket: Align
+AlignAfterOpenBracket: false
 
-AllowShortLambdasOnASingleLine: Inline
+AllowShortLambdasOnASingleLine: Empty
+LambdaBodyIndentation: Signature
+
+AllowShortCompoundRequirementOnASingleLine: true
 
 AlignArrayOfStructures: Right
 AlignEscapedNewlines: Left
+
+SpacesInAngles: Leave
 
 AlignConsecutiveAssignments:
   Enabled:          false
@@ -65,6 +78,7 @@ BraceWrapping:
   AfterFunction: true
   AfterNamespace: false
   AfterExternBlock: false
+  #AfterRequiresExpression: false
   BeforeCatch: true
   BeforeElse: false
   BeforeLambdaBody: false
@@ -73,3 +87,21 @@ BraceWrapping:
   SplitEmptyRecord: false
   SplitEmptyNamespace: false
 InsertBraces: true
+
+BreakBeforeConceptDeclarations: Always
+BreakBeforeTemplateCloser: true
+
+# PackArguments:
+#   BinPackArgumentsStyle: BinPack
+
+SpaceBeforeParens: Custom
+SpaceBeforeParensOptions:
+  AfterControlStatements: true
+  AfterForeachMacros: false
+  AfterFunctionDeclarationName: false
+  AfterFunctionDefinitionName: false
+  AfterIfMacros: false
+  AfterOverloadedOperator: false
+  AfterPlacementOperator: false
+  AfterRequiresInClause: true
+  AfterRequiresInExpression: false
