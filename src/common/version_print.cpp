@@ -4,7 +4,7 @@
 void clst::version::print_info() noexcept
 {
     const Version& v = get();
-    std::printf("clst %s, %s.\nBuild type %s, %s %s, compiled with %s %s\n",
+    std::printf("Celestite %s, %s.\nBuild type %s, %s %s, compiled with %s %s\n",
                 v.git_desc, v.commit_date,
                 v.build_type,
                 v.target_os, v.target_arch,

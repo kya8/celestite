@@ -9,7 +9,7 @@ endif()
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 set(X_VCPKG_APPLOCAL_DEPS_INSTALL ON) # let vcpkg install dependencies with install()
 
-project(clst
+project(celestite
 LANGUAGES CXX
 VERSION 0.1.0)
 
@@ -62,7 +62,7 @@ endif()
 endif()
 
 # compile-time log level
-set(CLST_LOG_LEVEL DEBUG CACHE STRING "Compile-time log level for clst.")
+set(CLST_LOG_LEVEL DEBUG CACHE STRING "Compile-time log level for celestite.")
 add_compile_definitions("CLST_LOG_LEVEL=CLST_LOG_LEVEL_${CLST_LOG_LEVEL}")
 
 #-------- Version & Build info

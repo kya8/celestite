@@ -5,30 +5,30 @@ find_package(Eigen3 CONFIG REQUIRED)
 # set(MULTI_CALL_NAMES calibrator insta360_normalize mp4join)
 # set(MAIN_NAME clst) # This is arbitary
 
-file(GLOB_RECURSE clstapplets_source CONFIGURE_DEPENDS
+file(GLOB_RECURSE clst_applets_source CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
 )
-list(FILTER clstapplets_source EXCLUDE REGEX "(^|/)_")
+list(FILTER clst_applets_source EXCLUDE REGEX "(^|/)_")
 
-add_executable(clstapplets ${clstapplets_source})
+add_executable(clst_applets ${clst_applets_source})
 
-set_target_properties(clstapplets PROPERTIES
+set_target_properties(clst_applets PROPERTIES
     OUTPUT_NAME clst
     RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin
 )
 
-target_link_libraries(clstapplets
+target_link_libraries(clst_applets
 PRIVATE
     clst::common clst::clst ${OpenCV_LIBS} Eigen3::Eigen Threads::Threads
 )
 
-install(TARGETS clstapplets)
+install(TARGETS clst_applets)
 
 # Create a symlink for bin/clst in the build tree
-add_custom_command(TARGET clstapplets POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E create_symlink bin/"$<TARGET_FILE_NAME:clstapplets>" "$<TARGET_FILE_NAME:clstapplets>"
+add_custom_command(TARGET clst_applets POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E create_symlink bin/"$<TARGET_FILE_NAME:clst_applets>" "$<TARGET_FILE_NAME:clst_applets>"
     WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
 )
 
@@ -40,12 +40,12 @@ foreach(name IN LISTS MULTI_CALL_NAMES)
     endif()
 
     # Create symlinks in the build tree
-    add_custom_command(TARGET clstutils POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE_NAME:clstutils> ${name}
-        WORKING_DIRECTORY $<TARGET_FILE_DIR:clstutils>
+    add_custom_command(TARGET clst_utils POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE_NAME:clst_utils> ${name}
+        WORKING_DIRECTORY $<TARGET_FILE_DIR:clst_utils>
     )
 
     # Copy the symlinks to the install tree
-    install(PROGRAMS $<TARGET_FILE_DIR:clstutils>/${name} TYPE BIN)
+    install(PROGRAMS $<TARGET_FILE_DIR:clst_utils>/${name} TYPE BIN)
 endforeach()
 ]]

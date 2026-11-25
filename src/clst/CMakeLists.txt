@@ -4,7 +4,7 @@ find_package(Protobuf REQUIRED)
 find_package(Threads)
 find_package(Eigen3 CONFIG REQUIRED)
 
-file(GLOB_RECURSE clstsources CONFIGURE_DEPENDS
+file(GLOB_RECURSE clst_sources CONFIGURE_DEPENDS
     ${CLST_PUBLIC_INCLUDE_DIR}/clst/*.hpp
     ${CLST_PUBLIC_INCLUDE_DIR}/clst/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp
@@ -12,9 +12,9 @@ file(GLOB_RECURSE clstsources CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/*.proto
 )
-list(FILTER clstsources EXCLUDE REGEX "(^|/)_")
+list(FILTER clst_sources EXCLUDE REGEX "(^|/)_")
 
-add_library(clst ${clstsources})
+add_library(clst ${clst_sources})
 add_library(clst::clst ALIAS clst)
 
 set(PROTO_GEN_DIR ${CMAKE_CURRENT_BINARY_DIR}/proto_gen)
