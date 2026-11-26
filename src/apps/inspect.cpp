@@ -5,10 +5,14 @@
 #include "sys_utils.hpp"
 #include "string_utils.hpp"
 #include "timer.hpp"
+#include <charconv>
+#include <cstddef>
 #include <print>
 #include <fstream>
 #include <cstring>
 #include <string>
+#include <string_view>
+#include <system_error>
 #include <vector>
 #include <fstream>
 #include <cstdlib>
@@ -18,6 +22,10 @@
 using namespace clst;
 
 namespace {
+
+constexpr std::size_t key_column = 30;
+constexpr std::size_t indent_width = 2;
+constexpr std::size_t default_max_depth = 4;
 
 const auto& help_msg =
 R"^^(inspect: Extract and display camera information from video files.
@@ -31,6 +39,8 @@ Options:
  -q, --dump-quat        Dump camera quaternion data (if available) in CSV format.
  -l <N>                 Limit the number of elements printed for vector types to N. Default is 50. Set to 0 for no limit.
                         Does not affect '-j' output, which always prints the full data.
+ -d, --max-depth <N>    Display maps at depth N as '...'. Default is 4. Set to 0 for no limit.
+                        Count depth from each displayed group or selected map. Applies to indented output.
  -p, --property <PROP>  For each input video, only display the specified property.
                         PROP must consist of a group name and at least one key name, separated by colons (:),
                         e.g., Group:Key1:Key2
@@ -97,6 +107,42 @@ const Value* find_value(const GroupedVarMap& gmap, std::string_view prop) noexce
     return val;
 }
 
+void print_map(const VarMap& map, std::size_t max_depth, std::size_t max_vec_len, bool color)
+{
+    struct MapFrame {
+        VarMap::const_iterator next;
+        VarMap::const_iterator end;
+    };
+
+    const auto key_color = color ? "\033[36m" : "";
+    const auto reset_color = color ? "\033[0m" : "";
+    std::vector<MapFrame> stack{{map.cbegin(), map.cend()}};
+    while (!stack.empty()) {
+        auto& [next, end] = stack.back();
+        if (next == end) {
+            stack.pop_back();
+            continue;
+        }
+
+        const auto& [key, value] = *next++;
+        const auto key_name = to_string(key);
+        const auto depth = stack.size();
+        const auto indent = depth * indent_width;
+        const auto* child = std::get_if<VarMap>(&value);
+        const bool at_limit = max_depth != 0 && depth >= max_depth;
+
+        std::print("{:>{}}{}", "", indent, key_color);
+        if (child && !at_limit && !child->empty()) {
+            std::println("{}{}:", key_name, reset_color);
+            stack.push_back({child->cbegin(), child->cend()});
+        } else {
+            const auto key_width = indent < key_column ? key_column - indent : 1;
+            std::println("{:<{}}{}: {}", key_name, key_width, reset_color,
+                         child && at_limit ? "..." : to_string(value, max_vec_len));
+        }
+    }
+}
+
 } // namespace
 
 int clst::main_clst(int argc, char** argv) noexcept
@@ -106,6 +152,7 @@ int clst::main_clst(int argc, char** argv) noexcept
     bool dump_gyro = false;
     bool dump_quat = false;
     std::size_t max_vec_len = 50;
+    std::size_t max_depth = default_max_depth;
     bool print_version = false;
     bool show_help = false;
     bool raw_output = false;
@@ -143,6 +190,15 @@ int clst::main_clst(int argc, char** argv) noexcept
                 }
                 else {
                     err_flag = true;
+                }
+            } else if (match_any(argv[i], "-d", "--max-depth")) {
+                if (++i == argc) {
+                    err_flag = true;
+                } else {
+                    const std::string_view depth(argv[i]);
+                    const auto end = depth.data() + depth.size();
+                    const auto [ptr, error] = std::from_chars(depth.data(), end, max_depth);
+                    err_flag = error != std::errc{} || ptr != end;
                 }
             } else if (match_any(argv[i], "-h", "--help")) {
                 show_help = true;
@@ -187,7 +243,6 @@ int clst::main_clst(int argc, char** argv) noexcept
         const auto time_detect = timer.toc();
 
         CLST_LOG_INFO("File {} parsed in {:.3f} ms", filename, time_detect * 1e3);
-        static constexpr auto width = 30;
         if (input_filenames.size() > 1) {
             if (stdout_is_colorterm) {
                 std::print("\033[1;4mFile {}\033[22m: {}\033[0m\n", ix + 1, filename);
@@ -204,11 +259,14 @@ int clst::main_clst(int argc, char** argv) noexcept
             if (!val) {
                 std::println("Property not found: {}", show_property);
                 has_error = true;
+            } else if (const auto* map = std::get_if<VarMap>(val); map && !raw_output && !map->empty()) {
+                std::println("{}:", show_property);
+                print_map(*map, max_depth, max_vec_len, stdout_is_colorterm);
             } else {
                 std::println("{}: {}", show_property, to_string(*val));
             }
         } else {
-            std::print("{:<{}}: {}\n", "Camera Vendor", width, to_string(info->vendor));
+            std::print("{:<{}}: {}\n", "Camera Vendor", key_column, to_string(info->vendor));
 
             for (const auto& [group, map] : info->extras) {
                 if (stdout_is_colorterm) {
@@ -221,14 +279,7 @@ int clst::main_clst(int argc, char** argv) noexcept
                 if (raw_output) {
                     std::cout << map << '\n';
                 } else {
-                    for (const auto& [key, value] : map) {
-                        if (stdout_is_colorterm) {
-                            std::print("  \033[36m{:<{}}\033[0m", to_string(key), width - 2);
-                        } else {
-                            std::print("  {:<{}}", to_string(key), width - 2);
-                        }
-                        std::print(": {}\n", to_string(value, max_vec_len));
-                    }
+                    print_map(map, max_depth, max_vec_len, stdout_is_colorterm);
                 }
             }
             if (dump_gyro) {
