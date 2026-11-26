@@ -31,10 +31,10 @@ void read_setting(const gpmf::RecordView& record, CameraInfo& info)
         return;
     }
     if (const auto text = record.text()) {
-        info.extras[GroupId::Metadata][fourcc_str<false>(record.key)] = std::string(*text);
+        info.extras[GroupId::Metadata][fourcc_str(record.key)] = std::string(*text);
     } else if (record.repeat == 1 && record.numeric_elements_per_sample() == 1) {
         if (const auto number = record.number(0)) {
-            info.extras[GroupId::Metadata][fourcc_str<false>(record.key)] = *number;
+            info.extras[GroupId::Metadata][fourcc_str(record.key)] = *number;
         }
     }
 }
@@ -54,7 +54,7 @@ void read_metadata(const gpmf::RecordView& record, CameraInfo& info)
 
     const auto text = record.text();
     if (!text) {
-        CLST_LOG_WARN("Invalid GPMF text in {}", fourcc_str<false>(record.key));
+        CLST_LOG_WARN("Invalid GPMF text in {}", fourcc_str(record.key));
         return;
     }
     auto& metadata = info.extras[GroupId::NormalizedMetadata];
@@ -121,11 +121,11 @@ std::optional<std::vector<gpmf::SampleTiming>> stream_timing(
     const auto missing = std::ranges::count_if(stream.batches, [](const auto& batch) { return !batch.timestamp; });
     if (missing != 0) {
         CLST_LOG_DEBUG("STMP is unavailable in {}/{} GoPro {} payloads. Estimating those timestamps.",
-                       missing, stream.batches.size(), fourcc_str<false>(key));
+                       missing, stream.batches.size(), fourcc_str(key));
     }
     auto timing = gpmf::calculate_sample_timing(stream.batches, clock);
     if (!timing) {
-        CLST_LOG_WARN("Could not estimate timestamps for GoPro {}", fourcc_str<false>(key));
+        CLST_LOG_WARN("Could not estimate timestamps for GoPro {}", fourcc_str(key));
     }
     return timing;
 }
@@ -196,7 +196,7 @@ void read_telemetry(mp4::Mp4Stream& file, CameraInfo& info, const VideoInfo* vid
         const bool orient = record.key == "GYRO"_fc || record.key == "CORI"_fc;
         const auto values = gpmf::decode_scaled_samples(record, orient ? modifiers : scale_only, axes);
         if (!values) {
-            CLST_LOG_WARN("Invalid or unsupported GPMF sensor data in {}", fourcc_str<false>(record.key));
+            CLST_LOG_WARN("Invalid or unsupported GPMF sensor data in {}", fourcc_str(record.key));
             stream.failed = true;
             stream.values.clear();
             return;
@@ -261,13 +261,13 @@ void read_telemetry(mp4::Mp4Stream& file, CameraInfo& info, const VideoInfo* vid
             data[KeyId::ExposureData] = timed_samples<1>(stream, *timing, raw_sample<1>);
             break;
         case "GRAV"_fc: case "WRGB"_fc:
-            data[fourcc_str<false>(key)] = timed_samples<3>(stream, *timing, raw_sample<3>);
+            data[fourcc_str(key)] = timed_samples<3>(stream, *timing, raw_sample<3>);
             break;
         case "IORI"_fc:
-            data[fourcc_str<false>(key)] = timed_samples<4>(stream, *timing, raw_sample<4>);
+            data[fourcc_str(key)] = timed_samples<4>(stream, *timing, raw_sample<4>);
             break;
         case "ISOE"_fc: case "ISOG"_fc: case "WBAL"_fc: case "SROT"_fc:
-            data[fourcc_str<false>(key)] = timed_samples<1>(stream, *timing, raw_sample<1>);
+            data[fourcc_str(key)] = timed_samples<1>(stream, *timing, raw_sample<1>);
             break;
         }
     }

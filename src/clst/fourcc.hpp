@@ -67,7 +67,7 @@ consteval FourCC operator""_fc(const char* s, std::size_t len)
  * @tparam Inv If true, the string begins with the LSB. Otherwise it begins with the MSB.
  * @tparam Printable If true, non-printable characters are substituted with '?'.
  */
-template<bool Inv = true, bool Printable = true>
+template<bool Inv = false, bool Printable = true>
 constexpr std::string // std::fixed_string?
 fourcc_str(std::uint32_t u) noexcept
 {
