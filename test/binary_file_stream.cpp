@@ -40,6 +40,7 @@ using clst::NativeBinaryFileStream;
 using clst::OffsetType;
 using clst::SeekFrom;
 using clst::adopt_handle;
+using clst::ex;
 
 static_assert(clst::ReadStream<BinaryFileStream> && clst::WriteStream<BinaryFileStream>);
 static_assert(clst::ReadStream<NativeBinaryFileStream> && clst::WriteStream<NativeBinaryFileStream>);
@@ -131,8 +132,8 @@ bool native_handle_is_open(NativeBinaryFileStream::NativeHandle handle)
 void check_adoption(const std::string& filename)
 {
     NativeBinaryFileStream writer(filename.c_str(), FileStreamMode::Write);
-    writer.write_ex("abcdef", 6);
-    writer.close_ex();
+    writer.write(ex, "abcdef", 6);
+    writer.close(ex);
 
     const auto handle = open_native_handle(filename, true);
 #ifdef _WIN32
@@ -143,16 +144,16 @@ void check_adoption(const std::string& filename)
     CLST_ASSERT(::lseek(handle, 2, SEEK_SET) == 2);
 #endif
     NativeBinaryFileStream stream(adopt_handle, handle, FileStreamMode::ReadExtended);
-    CLST_ASSERT(stream.get_handle() == handle && stream.tell_ex() == 2);
+    CLST_ASSERT(stream.get_handle() == handle && stream.tell(ex) == 2);
     std::array<char, 2> data{};
-    CLST_ASSERT(stream.read_ex(data.data(), data.size()) == data.size());
+    CLST_ASSERT(stream.read(ex, data.data(), data.size()) == data.size());
     CLST_ASSERT(std::string_view(data.data(), data.size()) == "cd");
 
     const auto incoming = open_native_handle(filename, false);
     CLST_ASSERT(stream.adopt(incoming, FileStreamMode::Read) == std::errc::device_or_resource_busy);
     CLST_ASSERT(native_handle_is_open(incoming));
-    CLST_ASSERT(stream.get_handle() == handle && stream.tell_ex() == 4);
-    stream.close_ex();
+    CLST_ASSERT(stream.get_handle() == handle && stream.tell(ex) == 4);
+    stream.close(ex);
     CLST_ASSERT(!native_handle_is_open(handle));
 
     const auto invalid_mode = static_cast<FileStreamMode>(-1);
@@ -164,28 +165,28 @@ void check_adoption(const std::string& filename)
 #endif
     {
         NativeBinaryFileStream reader;
-        reader.adopt_ex(incoming, FileStreamMode::Read);
-        CLST_ASSERT(reader.get_handle() == incoming && reader.tell_ex() == 0);
-        CLST_ASSERT(reader.read_ex(data.data(), data.size()) == data.size());
+        reader.adopt(ex, incoming, FileStreamMode::Read);
+        CLST_ASSERT(reader.get_handle() == incoming && reader.tell(ex) == 0);
+        CLST_ASSERT(reader.read(ex, data.data(), data.size()) == data.size());
         CLST_ASSERT(std::string_view(data.data(), data.size()) == "ab");
     }
     CLST_ASSERT(!native_handle_is_open(incoming));
 
 #ifdef _WIN32
-    CLST_ASSERT_THROW(stream.adopt_ex(INVALID_HANDLE_VALUE, FileStreamMode::Read), std::system_error);
+    CLST_ASSERT_THROW(stream.adopt(ex, INVALID_HANDLE_VALUE, FileStreamMode::Read), std::system_error);
     CLST_ASSERT(stream.adopt(nullptr, FileStreamMode::Read));
 #else
-    CLST_ASSERT_THROW(stream.adopt_ex(-1, FileStreamMode::Read), std::system_error);
+    CLST_ASSERT_THROW(stream.adopt(ex, -1, FileStreamMode::Read), std::system_error);
     const auto append_handle = ::open(filename.c_str(), O_WRONLY | O_APPEND);
     CLST_ASSERT(append_handle != -1);
     CLST_ASSERT(stream.adopt(append_handle, FileStreamMode::Write));
     CLST_ASSERT(!stream.is_open() && native_handle_is_open(append_handle));
     CLST_ASSERT(!stream.adopt(append_handle, FileStreamMode::Append));
-    CLST_ASSERT(stream.tell_ex() == 0);
-    CLST_ASSERT(stream.write_ex("g", 1) == 1);
-    stream.flush_ex();
-    CLST_ASSERT(stream.tell_ex() == 7 && native_length(stream) == 7);
-    stream.close_ex();
+    CLST_ASSERT(stream.tell(ex) == 0);
+    CLST_ASSERT(stream.write(ex, "g", 1) == 1);
+    stream.flush(ex);
+    CLST_ASSERT(stream.tell(ex) == 7 && native_length(stream) == 7);
+    stream.close(ex);
     CLST_ASSERT(!native_handle_is_open(append_handle));
 #endif
 }
@@ -196,9 +197,9 @@ void check_release(const std::string& filename)
     {
         NativeBinaryFileStream stream;
         CLST_ASSERT(stream.release() == stream.get_handle());
-        stream.open_ex(filename.c_str(), FileStreamMode::WriteExtended);
+        stream.open(ex, filename.c_str(), FileStreamMode::WriteExtended);
         const auto original = stream.get_handle();
-        stream.write_ex("abcdef", 6);
+        stream.write(ex, "abcdef", 6);
         CLST_ASSERT(native_length(stream) == 0);
 
         handle = stream.release();
@@ -208,18 +209,18 @@ void check_release(const std::string& filename)
     CLST_ASSERT(native_handle_is_open(handle));
     {
         NativeBinaryFileStream stream(adopt_handle, handle, FileStreamMode::ReadExtended);
-        CLST_ASSERT(stream.tell_ex() == 6 && stream.get_length_ex() == 6);
-        stream.seek_ex(0);
+        CLST_ASSERT(stream.tell(ex) == 6 && stream.get_length(ex) == 6);
+        stream.seek(ex, 0);
         char first = 0;
-        CLST_ASSERT(stream.read_ex(&first, 1) == 1 && first == 'a');
-        CLST_ASSERT(stream.tell_ex() == 1 && native_position(stream) == 6);
+        CLST_ASSERT(stream.read(ex, &first, 1) == 1 && first == 'a');
+        CLST_ASSERT(stream.tell(ex) == 1 && native_position(stream) == 6);
 
         CLST_ASSERT(stream.release() == handle && !stream.is_open());
     }
     NativeBinaryFileStream stream(adopt_handle, handle, FileStreamMode::ReadExtended);
-    CLST_ASSERT(stream.tell_ex() == 1);
+    CLST_ASSERT(stream.tell(ex) == 1);
     std::array<char, 5> remaining{};
-    CLST_ASSERT(stream.read_ex(remaining.data(), remaining.size()) == remaining.size());
+    CLST_ASSERT(stream.read(ex, remaining.data(), remaining.size()) == remaining.size());
     CLST_ASSERT(std::string_view(remaining.data(), remaining.size()) == "bcdef");
 }
 
@@ -230,7 +231,11 @@ void check_modes_and_eof(const std::string& filename)
     CLST_ASSERT(!stream.is_open());
     CLST_ASSERT(!stream.tell() && stream.tell().error() == std::errc::bad_file_descriptor);
     CLST_ASSERT(stream.open(filename.c_str(), FileStreamMode::Read));
-    CLST_ASSERT_THROW(stream.open_ex(filename.c_str(), FileStreamMode::ReadExtended), std::system_error);
+    if constexpr (std::is_same_v<Stream, NativeBinaryFileStream>) {
+        CLST_ASSERT_THROW(stream.open(ex, filename.c_str(), FileStreamMode::ReadExtended), std::system_error);
+    } else {
+        CLST_ASSERT_THROW(stream.open_ex(filename.c_str(), FileStreamMode::ReadExtended), std::system_error);
+    }
     CLST_ASSERT(!stream.is_open());
 
     CLST_ASSERT(!stream.open(filename.c_str(), FileStreamMode::Write));
@@ -241,62 +246,63 @@ void check_modes_and_eof(const std::string& filename)
     CLST_ASSERT(!stream.flush());
     CLST_ASSERT(!stream.close());
 
-    stream.open_ex(filename.c_str());
+    CLST_ASSERT(!stream.open(filename.c_str()));
     std::array<char, 5> data{};
     const auto read = stream.read(data.data(), data.size());
     CLST_ASSERT(read.bytes_transferred == 3 && !read.error);
     CLST_ASSERT(std::string_view(data.data(), read.bytes_transferred) == "abc");
     const auto eof = stream.read(data.data(), 1);
     CLST_ASSERT(eof.bytes_transferred == 0 && !eof.error);
-    stream.seek_ex(-1, SeekFrom::End);
+    CLST_ASSERT(!stream.seek(-1, SeekFrom::End));
     try {
         stream.read_exact(data.data(), 2);
         CLST_ASSERT(false);
     } catch (const std::system_error& error) {
         CLST_ASSERT(error.code() == std::make_error_code(std::io_errc::stream));
     }
-    CLST_ASSERT(stream.tell_ex() == 3);
+    CLST_ASSERT(stream.tell() == 3);
     stream.read_exact(data.data(), 0);
     CLST_ASSERT_THROW(stream.write_exact("x", 1), std::system_error);
-    stream.close_ex();
+    CLST_ASSERT(!stream.close());
 
-    stream.open_ex(filename.c_str(), FileStreamMode::ReadExtended);
+    CLST_ASSERT(!stream.open(filename.c_str(), FileStreamMode::ReadExtended));
     stream.read_exact(data.data(), 1);
     CLST_ASSERT(data.front() == 'a');
     stream.write_exact("B", 1);
     stream.read_exact(data.data(), 1);
     CLST_ASSERT(data.front() == 'c');
-    stream.close_ex();
+    CLST_ASSERT(!stream.close());
 
-    stream.open_ex(filename.c_str(), FileStreamMode::Append);
+    CLST_ASSERT(!stream.open(filename.c_str(), FileStreamMode::Append));
     if constexpr (std::is_same_v<Stream, NativeBinaryFileStream>) {
-        CLST_ASSERT(stream.tell_ex() == 3);
+        CLST_ASSERT(stream.tell() == 3);
     }
     CLST_ASSERT(!stream.seek(0));
-    CLST_ASSERT(stream.write_ex("d", 1) == 1);
-    CLST_ASSERT(stream.get_length_ex() == 4 && stream.tell_ex() == 4);
-    stream.close_ex();
+    stream.write_exact("d", 1);
+    CLST_ASSERT(stream.get_length() == 4 && stream.tell() == 4);
+    CLST_ASSERT(!stream.close());
 
-    stream.open_ex(filename.c_str(), FileStreamMode::AppendExtended);
+    CLST_ASSERT(!stream.open(filename.c_str(), FileStreamMode::AppendExtended));
     if constexpr (std::is_same_v<Stream, NativeBinaryFileStream>) {
-        CLST_ASSERT(stream.tell_ex() == 4);
+        CLST_ASSERT(stream.tell() == 4);
     }
-    stream.seek_ex(0);
-    CLST_ASSERT(stream.read_ex(data.data(), 4) == 4);
+    CLST_ASSERT(!stream.seek(0));
+    stream.read_exact(data.data(), 4);
     CLST_ASSERT(std::string_view(data.data(), 4) == "aBcd");
-    stream.seek_ex(-2, SeekFrom::Current);
-    CLST_ASSERT(stream.write_ex("e", 1) == 1);
-    stream.seek_ex(-2, SeekFrom::End);
-    CLST_ASSERT(stream.read_ex(data.data(), 2) == 2);
+    CLST_ASSERT(!stream.seek(-2, SeekFrom::Current));
+    stream.write_exact("e", 1);
+    CLST_ASSERT(!stream.seek(-2, SeekFrom::End));
+    stream.read_exact(data.data(), 2);
     CLST_ASSERT(std::string_view(data.data(), 2) == "de");
-    stream.close_ex();
+    CLST_ASSERT(!stream.close());
 
-    stream.open_ex(filename.c_str(), FileStreamMode::WriteExtended);
-    CLST_ASSERT(stream.get_length_ex() == 0);
-    CLST_ASSERT(stream.write_ex("z", 1) == 1);
-    stream.seek_ex(0);
-    CLST_ASSERT(stream.read_ex(data.data(), 1) == 1 && data.front() == 'z');
-    stream.close_ex();
+    CLST_ASSERT(!stream.open(filename.c_str(), FileStreamMode::WriteExtended));
+    CLST_ASSERT(stream.get_length() == 0);
+    stream.write_exact("z", 1);
+    CLST_ASSERT(!stream.seek(0));
+    stream.read_exact(data.data(), 1);
+    CLST_ASSERT(data.front() == 'z');
+    CLST_ASSERT(!stream.close());
 }
 
 void check_interrupted_exact_transfer()
@@ -334,26 +340,26 @@ void check_cache_boundaries(const std::string& filename)
     }
 
     NativeBinaryFileStream stream(filename.c_str(), FileStreamMode::WriteExtended);
-    stream.write_ex(expected.data(), 5);
-    CLST_ASSERT(stream.tell_ex() == 5 && stream.get_length_ex() == 5);
+    stream.write(ex, expected.data(), 5);
+    CLST_ASSERT(stream.tell(ex) == 5 && stream.get_length(ex) == 5);
     CLST_ASSERT(native_length(stream) == 0);
-    stream.write_ex(expected.data() + 5, cache_size - 5);
-    stream.write_ex(expected.data() + cache_size, cache_size);
+    stream.write(ex, expected.data() + 5, cache_size - 5);
+    stream.write(ex, expected.data() + cache_size, cache_size);
     CLST_ASSERT(native_length(stream) == static_cast<OffsetType>(2 * cache_size));
-    stream.write_ex(expected.data() + 2 * cache_size, expected.size() - 2 * cache_size);
+    stream.write(ex, expected.data() + 2 * cache_size, expected.size() - 2 * cache_size);
 
-    stream.seek_ex(0);
+    stream.seek(ex, 0);
     std::vector<unsigned char> read(expected.size());
-    stream.read_ex(read.data(), 5);
-    stream.read_ex(read.data() + 5, cache_size - 2);
-    stream.read_ex(read.data() + cache_size + 3, expected.size() - cache_size - 3);
+    stream.read(ex, read.data(), 5);
+    stream.read(ex, read.data() + 5, cache_size - 2);
+    stream.read(ex, read.data() + cache_size + 3, expected.size() - cache_size - 3);
     CLST_ASSERT(read == expected);
 
-    stream.seek_ex(1);
-    stream.read_ex(read.data(), 1);
-    stream.flush_ex();
+    stream.seek(ex, 1);
+    stream.read(ex, read.data(), 1);
+    stream.flush(ex);
     CLST_ASSERT(native_position(stream) == 2);
-    stream.close_ex();
+    stream.close(ex);
 }
 
 void check_configurable_buffer(const std::string& filename)
@@ -361,54 +367,54 @@ void check_configurable_buffer(const std::string& filename)
     NativeBinaryFileStream stream;
     CLST_ASSERT(stream.get_buffer_size() == 64 * 1024);
     CLST_ASSERT(!stream.set_buffer_size(8));
-    stream.open_ex(filename.c_str(), FileStreamMode::WriteExtended);
-    stream.write_ex("abc", 3);
+    stream.open(ex, filename.c_str(), FileStreamMode::WriteExtended);
+    stream.write(ex, "abc", 3);
     CLST_ASSERT(native_length(stream) == 0);
     CLST_ASSERT(!stream.set_buffer_size(8));
     CLST_ASSERT(native_length(stream) == 0);
-    stream.set_buffer_size_ex(4);
+    stream.set_buffer_size(ex, 4);
     CLST_ASSERT(stream.get_buffer_size() == 4);
-    CLST_ASSERT(native_length(stream) == 3 && stream.tell_ex() == 3);
+    CLST_ASSERT(native_length(stream) == 3 && stream.tell(ex) == 3);
 
-    stream.write_ex("def", 3);
+    stream.write(ex, "def", 3);
     CLST_ASSERT(native_length(stream) == 3);
-    stream.set_buffer_size_ex(0);
+    stream.set_buffer_size(ex, 0);
     CLST_ASSERT(stream.get_buffer_size() == 0);
-    CLST_ASSERT(native_length(stream) == 6 && stream.tell_ex() == 6);
-    stream.seek_ex(0);
+    CLST_ASSERT(native_length(stream) == 6 && stream.tell(ex) == 6);
+    stream.seek(ex, 0);
     char c = 0;
-    CLST_ASSERT(stream.read_ex(&c, 1) == 1 && c == 'a');
+    CLST_ASSERT(stream.read(ex, &c, 1) == 1 && c == 'a');
     CLST_ASSERT(native_position(stream) == 1);
-    stream.seek_ex(0, SeekFrom::End);
-    CLST_ASSERT(stream.write_ex("g", 1) == 1);
-    CLST_ASSERT(native_length(stream) == 7 && stream.tell_ex() == 7);
+    stream.seek(ex, 0, SeekFrom::End);
+    CLST_ASSERT(stream.write(ex, "g", 1) == 1);
+    CLST_ASSERT(native_length(stream) == 7 && stream.tell(ex) == 7);
 
-    stream.set_buffer_size_ex(8);
-    stream.seek_ex(0);
-    CLST_ASSERT(stream.read_ex(&c, 1) == 1 && c == 'a');
+    stream.set_buffer_size(ex, 8);
+    stream.seek(ex, 0);
+    CLST_ASSERT(stream.read(ex, &c, 1) == 1 && c == 'a');
     CLST_ASSERT(native_position(stream) == 7);
-    stream.set_buffer_size_ex(2);
-    CLST_ASSERT(stream.tell_ex() == 1 && native_position(stream) == 1);
-    CLST_ASSERT(stream.read_ex(&c, 1) == 1 && c == 'b');
-    CLST_ASSERT(stream.tell_ex() == 2 && native_position(stream) == 3);
-    stream.close_ex();
+    stream.set_buffer_size(ex, 2);
+    CLST_ASSERT(stream.tell(ex) == 1 && native_position(stream) == 1);
+    CLST_ASSERT(stream.read(ex, &c, 1) == 1 && c == 'b');
+    CLST_ASSERT(stream.tell(ex) == 2 && native_position(stream) == 3);
+    stream.close(ex);
     CLST_ASSERT(stream.get_buffer_size() == 2);
 
-    stream.open_ex(filename.c_str(), FileStreamMode::WriteExtended);
+    stream.open(ex, filename.c_str(), FileStreamMode::WriteExtended);
     CLST_ASSERT(stream.get_buffer_size() == 2);
-    stream.write_ex("x", 1);
+    stream.write(ex, "x", 1);
     NativeBinaryFileStream moved(std::move(stream));
     CLST_ASSERT(!stream.is_open() && moved.get_buffer_size() == 2);
-    CLST_ASSERT(moved.tell_ex() == 1 && native_length(moved) == 0);
+    CLST_ASSERT(moved.tell(ex) == 1 && native_length(moved) == 0);
 
-    stream.set_buffer_size_ex(7);
+    stream.set_buffer_size(ex, 7);
     stream = std::move(moved);
     CLST_ASSERT(!moved.is_open() && stream.get_buffer_size() == 2);
-    CLST_ASSERT(stream.tell_ex() == 1 && native_length(stream) == 0);
-    stream.close_ex();
-    stream.open_ex(filename.c_str());
+    CLST_ASSERT(stream.tell(ex) == 1 && native_length(stream) == 0);
+    stream.close(ex);
+    stream.open(ex, filename.c_str());
     CLST_ASSERT(stream.get_buffer_size() == 2);
-    CLST_ASSERT(stream.read_ex(&c, 1) == 1 && c == 'x');
+    CLST_ASSERT(stream.read(ex, &c, 1) == 1 && c == 'x');
 }
 
 void check_pipe_copy(const std::string& filename)
@@ -431,100 +437,100 @@ void check_pipe_copy(const std::string& filename)
     NativeBinaryFileStream output(filename.c_str(), FileStreamMode::WriteExtended);
     output.copy_from(input, 4);
     std::array<char, 4> data{};
-    CLST_ASSERT(output.tell_ex() == 4 && output.read_at_ex(0, data.data(), data.size()) == data.size());
+    CLST_ASSERT(output.tell(ex) == 4 && output.read_at(ex, 0, data.data(), data.size()) == data.size());
     CLST_ASSERT(std::string_view(data.data(), data.size()) == "pipe");
 }
 
 void check_native_copy(const std::string& input_filename, const std::string& output_filename)
 {
     NativeBinaryFileStream input(input_filename.c_str(), FileStreamMode::WriteExtended);
-    input.write_ex("0123456789", 10);
-    input.seek_ex(0);
+    input.write(ex, "0123456789", 10);
+    input.seek(ex, 0);
     std::array<char, 7> data{};
-    CLST_ASSERT(input.read_ex(data.data(), 2) == 2);
-    CLST_ASSERT(input.tell_ex() == 2 && native_position(input) == 10);
+    CLST_ASSERT(input.read(ex, data.data(), 2) == 2);
+    CLST_ASSERT(input.tell(ex) == 2 && native_position(input) == 10);
 
     NativeBinaryFileStream output(output_filename.c_str(), FileStreamMode::WriteExtended);
-    output.write_ex(".", 1);
-    CLST_ASSERT(output.tell_ex() == 1 && native_length(output) == 0);
+    output.write(ex, ".", 1);
+    CLST_ASSERT(output.tell(ex) == 1 && native_length(output) == 0);
     output.copy_from(input, 4);
-    CLST_ASSERT(input.tell_ex() == 6 && output.tell_ex() == 5);
-    CLST_ASSERT(output.read_at_ex(0, data.data(), 5) == 5);
+    CLST_ASSERT(input.tell(ex) == 6 && output.tell(ex) == 5);
+    CLST_ASSERT(output.read_at(ex, 0, data.data(), 5) == 5);
     CLST_ASSERT(std::string_view(data.data(), 5) == ".2345");
 
-    input.seek_ex(0, SeekFrom::End);
+    input.seek(ex, 0, SeekFrom::End);
     try {
         output.copy_from(input, 1);
         CLST_ASSERT(false);
     } catch (const std::system_error& error) {
         CLST_ASSERT(error.code() == std::io_errc::stream);
     }
-    CLST_ASSERT(input.tell_ex() == 10 && output.tell_ex() == 5);
+    CLST_ASSERT(input.tell(ex) == 10 && output.tell(ex) == 5);
 
-    output.close_ex();
-    output.open_ex(output_filename.c_str(), FileStreamMode::AppendExtended);
-    output.seek_ex(0);
-    input.seek_ex(6);
+    output.close(ex);
+    output.open(ex, output_filename.c_str(), FileStreamMode::AppendExtended);
+    output.seek(ex, 0);
+    input.seek(ex, 6);
     output.copy_from(input, 2);
-    CLST_ASSERT(input.tell_ex() == 8 && output.tell_ex() == 7);
-    CLST_ASSERT(output.read_at_ex(0, data.data(), data.size()) == data.size());
+    CLST_ASSERT(input.tell(ex) == 8 && output.tell(ex) == 7);
+    CLST_ASSERT(output.read_at(ex, 0, data.data(), data.size()) == data.size());
     CLST_ASSERT(std::string_view(data.data(), data.size()) == ".234567");
 }
 
 void check_append_cache(const std::string& filename)
 {
     NativeBinaryFileStream stream(filename.c_str(), FileStreamMode::Write);
-    stream.write_ex("abc", 3);
-    stream.close_ex();
+    stream.write(ex, "abc", 3);
+    stream.close(ex);
 
-    stream.open_ex(filename.c_str(), FileStreamMode::AppendExtended);
-    stream.seek_ex(0);
-    stream.write_ex("def", 3);
-    CLST_ASSERT(stream.tell_ex() == 6 && stream.get_length_ex() == 6);
+    stream.open(ex, filename.c_str(), FileStreamMode::AppendExtended);
+    stream.seek(ex, 0);
+    stream.write(ex, "def", 3);
+    CLST_ASSERT(stream.tell(ex) == 6 && stream.get_length(ex) == 6);
     CLST_ASSERT(native_length(stream) == 3);
-    stream.flush_ex();
+    stream.flush(ex);
     CLST_ASSERT(native_length(stream) == 6 && native_position(stream) == 6);
-    stream.seek_ex(0);
+    stream.seek(ex, 0);
     std::array<char, 6> data{};
-    stream.read_ex(data.data(), data.size());
+    stream.read(ex, data.data(), data.size());
     CLST_ASSERT(std::string_view(data.data(), data.size()) == "abcdef");
-    stream.close_ex();
+    stream.close(ex);
 }
 
 void check_positioned_io(const std::string& filename)
 {
     NativeBinaryFileStream stream(filename.c_str(), FileStreamMode::WriteExtended, FileAccessPattern::Sequential);
-    stream.write_ex("abcdefgh", 8);
+    stream.write(ex, "abcdefgh", 8);
 
     std::array<char, 5> data{};
-    CLST_ASSERT(stream.read_at_ex(2, data.data(), 3) == 3);
-    CLST_ASSERT(std::string_view(data.data(), 3) == "cde" && stream.tell_ex() == 8);
+    CLST_ASSERT(stream.read_at(ex, 2, data.data(), 3) == 3);
+    CLST_ASSERT(std::string_view(data.data(), 3) == "cde" && stream.tell(ex) == 8);
     CLST_ASSERT(native_length(stream) == 0);
 
     const auto pending_tail = stream.read_at(6, data.data(), 3);
     CLST_ASSERT(pending_tail.bytes_transferred == 2 && !pending_tail.error);
     CLST_ASSERT(std::string_view(data.data(), 2) == "gh");
-    CLST_ASSERT(native_length(stream) == 8 && stream.tell_ex() == 8);
+    CLST_ASSERT(native_length(stream) == 8 && stream.tell(ex) == 8);
 
-    stream.write_ex("ij", 2);
-    CLST_ASSERT(stream.write_at_ex(8, "U", 1) == 1);
-    CLST_ASSERT(native_length(stream) == 10 && stream.tell_ex() == 10);
+    stream.write(ex, "ij", 2);
+    CLST_ASSERT(stream.write_at(ex, 8, "U", 1) == 1);
+    CLST_ASSERT(native_length(stream) == 10 && stream.tell(ex) == 10);
 
-    stream.seek_ex(0);
-    CLST_ASSERT(stream.read_ex(data.data(), 1) == 1 && data.front() == 'a');
+    stream.seek(ex, 0);
+    CLST_ASSERT(stream.read(ex, data.data(), 1) == 1 && data.front() == 'a');
     const auto read_ahead_end = native_position(stream);
     CLST_ASSERT(read_ahead_end == 10);
-    CLST_ASSERT(stream.read_at_ex(4, data.data(), 2) == 2);
+    CLST_ASSERT(stream.read_at(ex, 4, data.data(), 2) == 2);
     CLST_ASSERT(std::string_view(data.data(), 2) == "ef" && native_position(stream) == read_ahead_end);
 
     const auto disjoint = stream.write_at(read_ahead_end, "z", 1);
     CLST_ASSERT(disjoint.bytes_transferred == 1 && !disjoint.error);
-    CLST_ASSERT(stream.tell_ex() == 1 && native_position(stream) == read_ahead_end);
+    CLST_ASSERT(stream.tell(ex) == 1 && native_position(stream) == read_ahead_end);
 
     const auto written = stream.write_at(2, "XY", 2);
     CLST_ASSERT(written.bytes_transferred == 2 && !written.error);
-    CLST_ASSERT(stream.tell_ex() == 1 && native_position(stream) == 1);
-    CLST_ASSERT(stream.read_ex(data.data(), 4) == 4);
+    CLST_ASSERT(stream.tell(ex) == 1 && native_position(stream) == 1);
+    CLST_ASSERT(stream.read(ex, data.data(), 4) == 4);
     CLST_ASSERT(std::string_view(data.data(), 4) == "bXYe");
 
     const auto tail = stream.read_at(8, data.data(), data.size());
@@ -533,7 +539,7 @@ void check_positioned_io(const std::string& filename)
     const auto eof = stream.read_at(11, data.data(), data.size());
     CLST_ASSERT(eof.bytes_transferred == 0 && !eof.error);
     try {
-        (void)stream.read_at_ex(10, data.data(), 2);
+        (void)stream.read_at(ex, 10, data.data(), 2);
         CLST_ASSERT(false);
     } catch (const std::system_error& error) {
         CLST_ASSERT(error.code() == std::io_errc::stream);
@@ -542,67 +548,67 @@ void check_positioned_io(const std::string& filename)
     constexpr auto max_offset = std::numeric_limits<OffsetType>::max();
     CLST_ASSERT(stream.read_at(-1, data.data(), 1).error == std::errc::invalid_argument);
     CLST_ASSERT(stream.write_at(max_offset, "XY", 2).error);
-    CLST_ASSERT(stream.tell_ex() == 5);
-    stream.close_ex();
+    CLST_ASSERT(stream.tell(ex) == 5);
+    stream.close(ex);
 
     CLST_ASSERT(stream.read_at(0, data.data(), 1).error == std::errc::bad_file_descriptor);
     CLST_ASSERT(stream.write_at(0, "x", 1).error == std::errc::bad_file_descriptor);
-    stream.open_ex(filename.c_str(), FileStreamMode::AppendExtended);
-    stream.seek_ex(1);
+    stream.open(ex, filename.c_str(), FileStreamMode::AppendExtended);
+    stream.seek(ex, 1);
     const auto append_write = stream.write_at(0, "x", 1);
     CLST_ASSERT(append_write.bytes_transferred == 0 && append_write.error == std::errc::operation_not_supported);
-    CLST_ASSERT_THROW(stream.write_at_ex(0, "x", 1), std::system_error);
-    CLST_ASSERT(stream.tell_ex() == 1 && stream.get_length_ex() == 11);
-    CLST_ASSERT(stream.read_at_ex(0, data.data(), 1) == 1 && data.front() == 'a');
+    CLST_ASSERT_THROW(stream.write_at(ex, 0, "x", 1), std::system_error);
+    CLST_ASSERT(stream.tell(ex) == 1 && stream.get_length(ex) == 11);
+    CLST_ASSERT(stream.read_at(ex, 0, data.data(), 1) == 1 && data.front() == 'a');
 
-    stream.write_ex("!", 1);
-    CLST_ASSERT(stream.read_at_ex(11, data.data(), 1) == 1 && data.front() == '!');
-    CLST_ASSERT(native_length(stream) == 11 && stream.tell_ex() == 12);
-    CLST_ASSERT(stream.read_at_ex(10, data.data(), 2) == 2);
+    stream.write(ex, "!", 1);
+    CLST_ASSERT(stream.read_at(ex, 11, data.data(), 1) == 1 && data.front() == '!');
+    CLST_ASSERT(native_length(stream) == 11 && stream.tell(ex) == 12);
+    CLST_ASSERT(stream.read_at(ex, 10, data.data(), 2) == 2);
     CLST_ASSERT(std::string_view(data.data(), 2) == "z!");
-    CLST_ASSERT(native_length(stream) == 12 && stream.tell_ex() == 12);
-    stream.close_ex();
+    CLST_ASSERT(native_length(stream) == 12 && stream.tell(ex) == 12);
+    stream.close(ex);
 }
 
 void check_file_management(const std::string& filename)
 {
     NativeBinaryFileStream stream(filename.c_str(), FileStreamMode::WriteExtended);
-    stream.write_ex("abcdef", 6);
-    stream.resize_ex(3);
-    CLST_ASSERT(stream.tell_ex() == 6);
-    CLST_ASSERT(stream.get_length_ex() == 3 && native_length(stream) == 3);
+    stream.write(ex, "abcdef", 6);
+    stream.resize(ex, 3);
+    CLST_ASSERT(stream.tell(ex) == 6);
+    CLST_ASSERT(stream.get_length(ex) == 3 && native_length(stream) == 3);
 
-    stream.seek_ex(0);
+    stream.seek(ex, 0);
     std::array<char, 4> data{};
-    CLST_ASSERT(stream.read_ex(data.data(), 1) == 1 && data.front() == 'a');
+    CLST_ASSERT(stream.read(ex, data.data(), 1) == 1 && data.front() == 'a');
     CLST_ASSERT(!stream.resize(2));
-    CLST_ASSERT(stream.tell_ex() == 1 && stream.get_length_ex() == 2);
+    CLST_ASSERT(stream.tell(ex) == 1 && stream.get_length(ex) == 2);
     const auto tail = stream.read(data.data(), 2);
     CLST_ASSERT(tail.bytes_transferred == 1 && !tail.error && data.front() == 'b');
 
-    stream.resize_ex(8);
-    CLST_ASSERT(stream.tell_ex() == 2);
-    CLST_ASSERT(stream.get_length_ex() == 8 && native_length(stream) == 8);
-    CLST_ASSERT(stream.read_at_ex(0, data.data(), 2) == 2);
+    stream.resize(ex, 8);
+    CLST_ASSERT(stream.tell(ex) == 2);
+    CLST_ASSERT(stream.get_length(ex) == 8 && native_length(stream) == 8);
+    CLST_ASSERT(stream.read_at(ex, 0, data.data(), 2) == 2);
     CLST_ASSERT(std::string_view(data.data(), 2) == "ab");
 
     constexpr OffsetType reserve_size = 256 * 1024;
-    stream.reserve_ex(reserve_size);
+    stream.reserve(ex, reserve_size);
     CLST_ASSERT(!stream.reserve(reserve_size));
     CLST_ASSERT(!stream.reserve(32));
-    CLST_ASSERT(stream.get_length_ex() == 8 && native_length(stream) == 8 && stream.tell_ex() == 2);
+    CLST_ASSERT(stream.get_length(ex) == 8 && native_length(stream) == 8 && stream.tell(ex) == 2);
 
-    stream.seek_ex(0, SeekFrom::End);
-    stream.write_ex("x", 1);
+    stream.seek(ex, 0, SeekFrom::End);
+    stream.write(ex, "x", 1);
     CLST_ASSERT(!stream.sync(FileSyncMode::Data));
-    CLST_ASSERT(native_length(stream) == 9 && stream.tell_ex() == 9);
-    stream.write_ex("y", 1);
-    stream.sync_ex();
-    CLST_ASSERT(native_length(stream) == 10 && stream.tell_ex() == 10);
+    CLST_ASSERT(native_length(stream) == 9 && stream.tell(ex) == 9);
+    stream.write(ex, "y", 1);
+    stream.sync(ex);
+    CLST_ASSERT(native_length(stream) == 10 && stream.tell(ex) == 10);
 
     CLST_ASSERT(stream.resize(-1) == std::errc::invalid_argument);
-    CLST_ASSERT_THROW(stream.reserve_ex(-1), std::system_error);
-    stream.close_ex();
+    CLST_ASSERT_THROW(stream.reserve(ex, -1), std::system_error);
+    stream.close(ex);
     CLST_ASSERT(stream.resize(1) == std::errc::bad_file_descriptor);
     CLST_ASSERT(stream.reserve(1) == std::errc::bad_file_descriptor);
     CLST_ASSERT(stream.sync() == std::errc::bad_file_descriptor);
@@ -611,22 +617,22 @@ void check_file_management(const std::string& filename)
     CLST_ASSERT(!stream.open(filename.c_str(), FileStreamMode::Read, FileAccessPattern::Random));
     CLST_ASSERT(stream.resize(1));
     CLST_ASSERT(stream.reserve(16));
-    stream.prefetch_ex(1, 0);
+    stream.prefetch(ex, 1, 0);
     const auto prefetch_error = stream.prefetch(0, 2);
 #ifdef _WIN32
     CLST_ASSERT(prefetch_error == std::errc::operation_not_supported);
-    CLST_ASSERT_THROW(stream.prefetch_ex(0, 2), std::system_error);
+    CLST_ASSERT_THROW(stream.prefetch(ex, 0, 2), std::system_error);
 #else
     CLST_ASSERT(!prefetch_error);
-    stream.prefetch_ex(1, 2);
+    stream.prefetch(ex, 1, 2);
 #endif
     constexpr auto max_offset = std::numeric_limits<OffsetType>::max();
     CLST_ASSERT(stream.prefetch(-1, 1) == std::errc::invalid_argument);
     CLST_ASSERT(stream.prefetch(max_offset, 2));
-    CLST_ASSERT(stream.tell_ex() == 0);
-    CLST_ASSERT(stream.read_at_ex(8, data.data(), 2) == 2);
+    CLST_ASSERT(stream.tell(ex) == 0);
+    CLST_ASSERT(stream.read_at(ex, 8, data.data(), 2) == 2);
     CLST_ASSERT(std::string_view(data.data(), 2) == "xy");
-    stream.close_ex();
+    stream.close(ex);
 }
 
 void check_sparse_file(const std::string& filename)
@@ -637,14 +643,14 @@ void check_sparse_file(const std::string& filename)
     DWORD output_size = 0;
     CLST_ASSERT(DeviceIoControl(stream.get_handle(), FSCTL_SET_SPARSE, nullptr, 0, nullptr, 0, &output_size, nullptr));
 #endif
-    stream.seek_ex(offset);
-    stream.write_ex("x", 1);
-    CLST_ASSERT(stream.tell_ex() == offset + 1 && stream.get_length_ex() == offset + 1);
-    stream.seek_ex(-2, SeekFrom::End);
+    stream.seek(ex, offset);
+    stream.write(ex, "x", 1);
+    CLST_ASSERT(stream.tell(ex) == offset + 1 && stream.get_length(ex) == offset + 1);
+    stream.seek(ex, -2, SeekFrom::End);
     std::array<char, 2> data{};
-    stream.read_ex(data.data(), data.size());
+    stream.read(ex, data.data(), data.size());
     CLST_ASSERT(data[0] == '\0' && data[1] == 'x');
-    stream.close_ex();
+    stream.close(ex);
 }
 
 void check_move_and_mixins(const std::string& filename, const std::string& other_filename)
@@ -654,21 +660,21 @@ void check_move_and_mixins(const std::string& filename, const std::string& other
     const auto handle = stream.get_handle();
     NativeBinaryFileStream moved(std::move(stream));
     CLST_ASSERT(!stream.is_open());
-    CLST_ASSERT(moved.get_handle() == handle && moved.tell_ex() == 4);
+    CLST_ASSERT(moved.get_handle() == handle && moved.tell(ex) == 4);
     moved.patch_num(0, std::uint16_t{3});
-    CLST_ASSERT(moved.tell_ex() == 4);
-    moved.seek_ex(0);
+    CLST_ASSERT(moved.tell(ex) == 4);
+    moved.seek(ex, 0);
     std::uint16_t first = 0;
     moved.read_num(first);
     CLST_ASSERT(first == 3);
 
-    stream.open_ex(other_filename.c_str(), FileStreamMode::Write);
+    stream.open(ex, other_filename.c_str(), FileStreamMode::Write);
     stream.copy_from(moved, sizeof(std::uint16_t));
-    CLST_ASSERT(stream.tell_ex() == 2);
+    CLST_ASSERT(stream.tell(ex) == 2);
     stream = std::move(moved);
     CLST_ASSERT(!moved.is_open());
-    CLST_ASSERT(stream.get_handle() == handle && stream.tell_ex() == 4);
-    stream.close_ex();
+    CLST_ASSERT(stream.get_handle() == handle && stream.tell(ex) == 4);
+    stream.close(ex);
 
     BinaryFileStream output(other_filename.c_str());
     std::uint16_t value = 0;
@@ -677,7 +683,7 @@ void check_move_and_mixins(const std::string& filename, const std::string& other
     NativeBinaryFileStream truncated_copy(filename.c_str(), FileStreamMode::Write);
     output.seek_ex(0);
     CLST_ASSERT_THROW(truncated_copy.copy_from(output, 3), std::system_error);
-    CLST_ASSERT(truncated_copy.tell_ex() == 0);
+    CLST_ASSERT(truncated_copy.tell(ex) == 0);
 }
 
 #if defined(RLIMIT_FSIZE) && defined(SIGXFSZ)
@@ -711,7 +717,7 @@ void check_flush_retry(const std::string& filename)
     NativeBinaryFileStream stream(filename.c_str(), FileStreamMode::WriteExtended);
     const auto handle = stream.get_handle();
     constexpr std::string_view expected = "abcdefghijklmnop";
-    stream.write_ex(expected.data(), expected.size());
+    stream.write(ex, expected.data(), expected.size());
     {
         const ScopedFileSizeLimit limit(8);
         CLST_ASSERT(stream.flush() == std::errc::file_too_large);
@@ -721,21 +727,21 @@ void check_flush_retry(const std::string& filename)
         CLST_ASSERT(stream.close() == std::errc::file_too_large);
         CLST_ASSERT_THROW(stream.release(), std::system_error);
         CLST_ASSERT(stream.is_open() && stream.get_handle() == handle);
-        CLST_ASSERT(stream.tell_ex() == static_cast<OffsetType>(expected.size()));
-        CLST_ASSERT(stream.get_length_ex() == static_cast<OffsetType>(expected.size()));
+        CLST_ASSERT(stream.tell(ex) == static_cast<OffsetType>(expected.size()));
+        CLST_ASSERT(stream.get_length(ex) == static_cast<OffsetType>(expected.size()));
     }
-    stream.flush_ex();
+    stream.flush(ex);
     CLST_ASSERT(native_length(stream) == static_cast<OffsetType>(expected.size()));
-    stream.seek_ex(0);
+    stream.seek(ex, 0);
     std::array<char, expected.size()> read{};
-    stream.read_ex(read.data(), read.size());
+    stream.read(ex, read.data(), read.size());
     CLST_ASSERT(std::string_view(read.data(), read.size()) == expected);
-    stream.close_ex();
+    stream.close(ex);
 
     constexpr std::size_t direct_limit = 64 * 1024;
     std::vector<unsigned char> large(direct_limit + 1, 'a');
     large.back() = 'z';
-    stream.open_ex(filename.c_str(), FileStreamMode::WriteExtended);
+    stream.open(ex, filename.c_str(), FileStreamMode::WriteExtended);
     {
         const ScopedFileSizeLimit limit(direct_limit);
         try {
@@ -745,49 +751,49 @@ void check_flush_retry(const std::string& filename)
             CLST_ASSERT(error.code() == std::errc::file_too_large);
         }
         CLST_ASSERT(native_length(stream) == static_cast<OffsetType>(direct_limit));
-        CLST_ASSERT(stream.tell_ex() == static_cast<OffsetType>(direct_limit));
-        stream.flush_ex();
+        CLST_ASSERT(stream.tell(ex) == static_cast<OffsetType>(direct_limit));
+        stream.flush(ex);
     }
-    stream.write_ex(&large.back(), 1);
-    stream.flush_ex();
+    stream.write(ex, &large.back(), 1);
+    stream.flush(ex);
     CLST_ASSERT(native_length(stream) == static_cast<OffsetType>(large.size()));
-    stream.seek_ex(-1, SeekFrom::End);
+    stream.seek(ex, -1, SeekFrom::End);
     unsigned char last = 0;
-    stream.read_ex(&last, 1);
+    stream.read(ex, &last, 1);
     CLST_ASSERT(last == large.back());
-    stream.close_ex();
+    stream.close(ex);
 }
 
 void check_positioned_write_error(const std::string& filename)
 {
     NativeBinaryFileStream stream(filename.c_str(), FileStreamMode::WriteExtended);
-    stream.seek_ex(2);
+    stream.seek(ex, 2);
     constexpr std::string_view expected = "abcdef";
     {
         const ScopedFileSizeLimit limit(4);
         const auto written = stream.write_at(0, expected.data(), expected.size());
         CLST_ASSERT(written.bytes_transferred == 4 && !written.error);
         try {
-            (void)stream.write_at_ex(0, expected.data(), expected.size());
+            (void)stream.write_at(ex, 0, expected.data(), expected.size());
             CLST_ASSERT(false);
         } catch (const std::system_error& error) {
             CLST_ASSERT(error.code() == std::errc::file_too_large);
         }
-        CLST_ASSERT(stream.tell_ex() == 2 && native_length(stream) == 4);
+        CLST_ASSERT(stream.tell(ex) == 2 && native_length(stream) == 4);
     }
 
-    CLST_ASSERT(stream.write_at_ex(4, expected.data() + 4, 2) == 2);
+    CLST_ASSERT(stream.write_at(ex, 4, expected.data() + 4, 2) == 2);
     std::array<char, expected.size()> data{};
-    CLST_ASSERT(stream.read_at_ex(0, data.data(), data.size()) == data.size());
-    CLST_ASSERT(std::string_view(data.data(), data.size()) == expected && stream.tell_ex() == 2);
+    CLST_ASSERT(stream.read_at(ex, 0, data.data(), data.size()) == data.size());
+    CLST_ASSERT(std::string_view(data.data(), data.size()) == expected && stream.tell(ex) == 2);
 }
 
 #ifdef __linux__
 void check_native_copy_error(const std::string& input_filename, const std::string& output_filename)
 {
     NativeBinaryFileStream input(input_filename.c_str(), FileStreamMode::WriteExtended);
-    input.write_ex("abcdef", 6);
-    input.seek_ex(0);
+    input.write(ex, "abcdef", 6);
+    input.seek(ex, 0);
     NativeBinaryFileStream output(output_filename.c_str(), FileStreamMode::Write);
     output.copy_from(input, 1);
     // The buffered fallback retains the byte in memory on filesystems without native copy support.
@@ -804,7 +810,7 @@ void check_native_copy_error(const std::string& input_filename, const std::strin
     }
     const auto copied = native_length(output);
     CLST_ASSERT(copied >= 1 && copied <= 4);
-    CLST_ASSERT(output.tell_ex() == copied && input.tell_ex() == copied);
+    CLST_ASSERT(output.tell(ex) == copied && input.tell(ex) == copied);
 }
 #endif
 #endif
@@ -813,8 +819,8 @@ void check_truncated_mp4(const std::string& filename)
 {
     constexpr std::array<unsigned char, 6> truncated_atom{0, 0, 0, 8, 'm', 'o'};
     NativeBinaryFileStream output(filename.c_str(), FileStreamMode::Write);
-    output.write_ex(truncated_atom.data(), truncated_atom.size());
-    output.close_ex();
+    output.write(ex, truncated_atom.data(), truncated_atom.size());
+    output.close(ex);
 
     clst::mp4::Mp4Stream stream(filename.c_str());
     CLST_ASSERT_THROW(stream.parse_atom(), std::system_error);

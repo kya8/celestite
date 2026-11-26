@@ -1,6 +1,7 @@
 #ifndef CLST_STREAMS_BINARY_STREAM_HPP
 #define CLST_STREAMS_BINARY_STREAM_HPP
 
+#include "clst/tags.hpp"
 #include <cstdint>
 #include <cstddef>
 #include <type_traits>
@@ -48,6 +49,26 @@ struct RWStreamTag : ReadStreamTag, WriteStreamTag {};
 namespace detail {
 
 template<typename T>
+concept HasTaggedRead = requires(T& stream, void* buf, std::size_t n) {
+    { stream.read(ex, buf, n) } -> std::same_as<std::size_t>;
+};
+
+template<typename T>
+concept HasTaggedWrite = requires(T& stream, const void* buf, std::size_t n) {
+    { stream.write(ex, buf, n) } -> std::same_as<std::size_t>;
+};
+
+template<typename T>
+concept HasTaggedSeek = requires(T& stream, OffsetType offset, SeekFrom from) {
+    { stream.seek(ex, offset, from) } -> std::same_as<void>;
+};
+
+template<typename T>
+concept HasTaggedTell = requires(T& stream) {
+    { stream.tell(ex) } -> std::same_as<OffsetType>;
+};
+
+template<typename T>
 concept HasReadEx = requires(T& stream, void* buf, std::size_t n) {
     { stream.read_ex(buf, n) } -> std::same_as<std::size_t>;
 };
@@ -71,7 +92,9 @@ concept HasTellEx = requires(T& stream) {
 template<typename T>
 void read_exact(T& stream, void* buf, std::size_t n)
 {
-    if constexpr (HasReadEx<T>) {
+    if constexpr (HasTaggedRead<T>) {
+        stream.read(ex, buf, n);
+    } else if constexpr (HasReadEx<T>) {
         stream.read_ex(buf, n);
     } else {
         stream.read(buf, n);
@@ -81,7 +104,9 @@ void read_exact(T& stream, void* buf, std::size_t n)
 template<typename T>
 void write_exact(T& stream, const void* buf, std::size_t n)
 {
-    if constexpr (HasWriteEx<T>) {
+    if constexpr (HasTaggedWrite<T>) {
+        stream.write(ex, buf, n);
+    } else if constexpr (HasWriteEx<T>) {
         stream.write_ex(buf, n);
     } else {
         stream.write(buf, n);
@@ -91,7 +116,9 @@ void write_exact(T& stream, const void* buf, std::size_t n)
 template<typename T>
 void seek_exact(T& stream, OffsetType offset, SeekFrom from = SeekFrom::Begin)
 {
-    if constexpr (HasSeekEx<T>) {
+    if constexpr (HasTaggedSeek<T>) {
+        stream.seek(ex, offset, from);
+    } else if constexpr (HasSeekEx<T>) {
         stream.seek_ex(offset, from);
     } else {
         stream.seek(offset, from);
@@ -101,7 +128,9 @@ void seek_exact(T& stream, OffsetType offset, SeekFrom from = SeekFrom::Begin)
 template<typename T>
 OffsetType tell_exact(T& stream)
 {
-    if constexpr (HasTellEx<T>) {
+    if constexpr (HasTaggedTell<T>) {
+        return stream.tell(ex);
+    } else if constexpr (HasTellEx<T>) {
         return stream.tell_ex();
     } else {
         return stream.tell();
@@ -114,23 +143,23 @@ OffsetType tell_exact(T& stream)
 template<typename T>
 concept BasicStream = requires(T& a) {
     { a.is_open() } -> std::same_as<bool>;
-} && (detail::HasSeekEx<T> || requires(T& a, OffsetType off, SeekFrom seek) {
+} && (detail::HasTaggedSeek<T> || detail::HasSeekEx<T> || requires(T& a, OffsetType off, SeekFrom seek) {
     { a.seek(off, seek) } -> std::same_as<void>;
-}) && (detail::HasTellEx<T> || requires(T& a) {
+}) && (detail::HasTaggedTell<T> || detail::HasTellEx<T> || requires(T& a) {
     { a.tell() } -> std::same_as<OffsetType>;
 });
 
 // Concept for reader stream.
 template<typename T>
 concept ReadStream = BasicStream<T> && std::derived_from<T, ReadStreamTag> &&
-    (detail::HasReadEx<T> || requires(T& a, void* p, std::size_t size) {
+    (detail::HasTaggedRead<T> || detail::HasReadEx<T> || requires(T& a, void* p, std::size_t size) {
         { a.read(p, size) } -> std::same_as<void>;
     });
 
 // Concept for writer stream.
 template<typename T>
 concept WriteStream = BasicStream<T> && std::derived_from<T, WriteStreamTag> &&
-    (detail::HasWriteEx<T> || requires(T& a, const void* p, std::size_t size) {
+    (detail::HasTaggedWrite<T> || detail::HasWriteEx<T> || requires(T& a, const void* p, std::size_t size) {
         { a.write(p, size) } -> std::same_as<void>;
     });
 
