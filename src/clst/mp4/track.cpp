@@ -168,7 +168,7 @@ SampleReader::SampleReader(Mp4Stream& file, const TrackInfo& track_info) noexcep
 bool
 SampleReader::read_next(SampleInfo& out) noexcept try {
 {
-    if (sample_idx >= track_info.stsz_count || chunk_idx >= track_info.stco.size()) return false;
+    if (sample_idx >= track_info.stsz_count || chunk_idx >= track_info.stco.size() || track_info.mdhd_timescale == 0) return false;
     if (track_info.stsz_sample_size == 0 && sample_idx >= track_info.stsz.size()) return false;
     // in case of stsz_sample_size being 0, stsz_count and stsz.size() should be equal.
 
@@ -180,7 +180,7 @@ SampleReader::read_next(SampleInfo& out) noexcept try {
             const auto& [count, duration] = *it;
             if (total_count + count > sample_idx) break;
             total_count += count;
-            total_duration += duration * count;
+            total_duration += uint64_t(duration) * count;
         }
         if (it == track_info.stts.cend()) return false;
         const auto current_duration = std::get<1>(*it);
@@ -212,7 +212,8 @@ SampleReader::read_next(SampleInfo& out) noexcept try {
         sample_offset_in_chunk += (track_info.stsz_sample_size == 0? track_info.stsz[i] : track_info.stsz_sample_size);
     }
     file.seek(track_info.stco[chunk_idx] + sample_offset_in_chunk);
-    out.data.resize(track_info.stsz[sample_idx]);
+    const auto sample_size = track_info.stsz_sample_size == 0 ? track_info.stsz[sample_idx] : track_info.stsz_sample_size;
+    out.data.resize(sample_size);
     file.read(out.data.data(), out.data.size());
 
     //update state for next read:
