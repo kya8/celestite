@@ -146,7 +146,8 @@ concept Text = std::same_as<T, std::string> || std::same_as<T, std::string_view>
 template<class Config, class Binding>
 consteval bool valid_member()
 {
-    if constexpr (!requires (Config& config) { config.*Binding::member; }) {
+    if constexpr (!std::is_member_object_pointer_v<decltype(Binding::member)> ||
+                  !requires (Config& config) { config.*Binding::member; }) {
         return false;
     } else {
         using Field = std::remove_reference_t<decltype(std::declval<Config&>().*Binding::member)>;
