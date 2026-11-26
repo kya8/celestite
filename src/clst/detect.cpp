@@ -17,14 +17,14 @@ detect(const char* video_file, bool metadata_only) noexcept
         return std::nullopt;
     }
 
-    CameraInfo result{};
-    const auto detect_success =
-        detect_gopro   (file, result, metadata_only) ||
-        detect_insta360(file, result, metadata_only);
-
     VideoInfo video_info{};
     types::VecI32 video_track_idx;
     const auto has_video_info = extract_video_info(file, video_info, &video_track_idx);
+
+    CameraInfo result{};
+    const auto detect_success =
+        detect_gopro(file, result, metadata_only, has_video_info ? &video_info : nullptr) ||
+        detect_insta360(file, result, metadata_only);
 
     if (!detect_success) {
         if (!has_video_info) {

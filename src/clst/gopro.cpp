@@ -1,17 +1,42 @@
 #include "detectors.hpp"
 #include "gpmf.hpp"
 #include "mp4/track.hpp"
+#include "video_info.hpp"
 #include <clst/log.hpp>
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
+#include <map>
 #include <optional>
 #include <span>
 #include <string>
+#include <tuple>
+#include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace clst {
 
 namespace {
+
+void read_setting(const gpmf::RecordView& record, CameraInfo& info)
+{
+    constexpr FourCC settings[]{
+        "BITR"_fc, "DZOM"_fc, "DZST"_fc, "EISE"_fc, "EXMD"_fc, "EXMN"_fc, "EXMX"_fc, "EXPT"_fc,
+        "FOCL"_fc, "HCTL"_fc, "HDRV"_fc, "PIMN"_fc, "PIMX"_fc, "PRJT"_fc, "PRTN"_fc, "PTCL"_fc,
+        "PTEV"_fc, "PTSH"_fc, "PTWB"_fc, "RATE"_fc, "SROT"_fc, "ZFOV"_fc, "ZOOM"_fc,
+    };
+    if (!std::ranges::contains(settings, record.key)) {
+        return;
+    }
+    if (const auto text = record.text()) {
+        info.extras[GroupId::Metadata][fourcc_str<false>(record.key)] = std::string(*text);
+    } else if (record.repeat == 1 && record.numeric_elements_per_sample() == 1) {
+        if (const auto number = record.number(0)) {
+            info.extras[GroupId::Metadata][fourcc_str<false>(record.key)] = *number;
+        }
+    }
+}
 
 void read_metadata(const gpmf::RecordView& record, CameraInfo& info)
 {
@@ -23,7 +48,7 @@ void read_metadata(const gpmf::RecordView& record, CameraInfo& info)
     case "FMWR"_fc: field = KeyId::FirmwareVersion; break;
     case "EISA"_fc: field = KeyId::StabilizationMode; break;
     case "OREN"_fc: field = KeyId::CameraRotation; break;
-    default: return;
+    default: return read_setting(record, info);
     }
 
     const auto text = record.text();
@@ -38,25 +63,93 @@ void read_metadata(const gpmf::RecordView& record, CameraInfo& info)
     }
 }
 
-template<std::size_t AxisCount, typename Series, typename Convert>
-void append_sensor_samples(const gpmf::RecordView& record, const gpmf::Modifiers& modifiers,
-                           std::optional<Series>& series, Convert convert)
+struct SensorStream {
+    std::vector<double> values;
+    std::vector<gpmf::SampleBatch> batches;
+    bool failed = false;
+};
+
+std::size_t sensor_axes(FourCC key) noexcept
 {
-    if (!series) {
-        return;
-    }
-    const auto values = gpmf::decode_scaled_samples(record, modifiers, AxisCount);
-    if (!values) {
-        CLST_LOG_WARN("Invalid or unsupported GPMF sensor data in {}", fourcc_str<false>(record.key));
-        series.reset();
-        return;
-    }
-    for (std::size_t index = 0; index < values->size(); index += AxisCount) {
-        series->push_back(convert(std::span<const double, AxisCount>(values->data() + index, AxisCount)));
+    switch (key) {
+    case "CORI"_fc: case "IORI"_fc: return 4;
+    case "GYRO"_fc: case "ACCL"_fc: case "GRAV"_fc: case "WRGB"_fc: return 3;
+    case "SHUT"_fc: case "ISOE"_fc: case "ISOG"_fc: case "WBAL"_fc: case "SROT"_fc: return 1;
+    default: return 0;
     }
 }
 
-void read_telemetry(mp4::Mp4Stream& file, CameraInfo& info)
+template<std::size_t AxisCount, typename Convert>
+auto timed_samples(const SensorStream& stream, std::span<const gpmf::SampleTiming> timing, Convert convert)
+{
+    using Sample = std::invoke_result_t<Convert, double, std::span<const double, AxisCount>>;
+    std::vector<Sample> samples;
+    samples.reserve(stream.values.size() / AxisCount);
+    const auto* values = stream.values.data();
+    for (std::size_t batch = 0; batch < stream.batches.size(); ++batch) {
+        for (std::size_t index = 0; index < stream.batches[batch].count; ++index) {
+            samples.push_back(convert(timing[batch].at(index), std::span<const double, AxisCount>(values, AxisCount)));
+            values += AxisCount;
+        }
+    }
+    return samples;
+}
+
+template<std::size_t AxisCount>
+auto raw_sample(double timestamp, std::span<const double, AxisCount> values)
+{
+    return [&]<std::size_t... Indices>(std::index_sequence<Indices...>) {
+        return std::tuple(timestamp, values[Indices]...);
+    }(std::make_index_sequence<AxisCount>{});
+}
+
+types::Tuple4d camera_quaternion(std::span<const double, 4> values) noexcept
+{
+    // GoPro stores W,-X,-Y,-Z relative to the OpenCV camera frame.
+    return {-values[1], -values[2], -values[3], values[0]};
+}
+
+std::optional<std::vector<gpmf::SampleTiming>> stream_timing(
+    FourCC key, const SensorStream& stream, std::optional<gpmf::SampleClock> clock)
+{
+    const auto missing = std::ranges::count_if(stream.batches, [](const auto& batch) { return !batch.timestamp; });
+    if (missing != 0) {
+        CLST_LOG_DEBUG("STMP is unavailable in {}/{} GoPro {} payloads. Estimating those timestamps.",
+                       missing, stream.batches.size(), fourcc_str<false>(key));
+    }
+    auto timing = gpmf::calculate_sample_timing(stream.batches, clock);
+    if (!timing) {
+        CLST_LOG_WARN("Could not estimate timestamps for GoPro {}", fourcc_str<false>(key));
+    }
+    return timing;
+}
+
+void store_camera_orientation(VarMap& data, const SensorStream& stream, std::size_t video_frames,
+                              double frame_rate, std::optional<gpmf::SampleClock> clock)
+{
+    types::QuaternionVec quaternions;
+    quaternions.reserve(stream.values.size() / 4);
+    for (std::size_t index = 0; index < stream.values.size(); index += 4) {
+        quaternions.push_back(camera_quaternion(std::span<const double, 4>(stream.values.data() + index, 4)));
+    }
+
+    if (frame_rate > 0.0 && video_frames != 0) {
+        const auto frame_count = std::min(quaternions.size(), video_frames);
+        types::TimedQuaternionVec timed;
+        timed.reserve(frame_count);
+        for (std::size_t index = 0; index < frame_count; ++index) {
+            timed.push_back(std::tuple_cat(std::tuple(index / frame_rate), quaternions[index]));
+        }
+        data[KeyId::TimedCameraQuaternionData] = std::move(timed);
+    } else if (const auto timing = stream_timing("CORI"_fc, stream, clock)) {
+        data[KeyId::TimedCameraQuaternionData] = timed_samples<4>(stream, *timing, [](double timestamp, auto values) {
+            return std::tuple_cat(std::tuple(timestamp), camera_quaternion(values));
+        });
+    }
+    data[KeyId::CameraQuaternionData] = std::move(quaternions);
+}
+
+void read_telemetry(mp4::Mp4Stream& file, CameraInfo& info, const VideoInfo* video_info)
 {
     const auto tracks = mp4::get_tracks(file);
     const auto track = std::ranges::find(tracks, "gpmd"_fc, &mp4::TrackInfo::stsd_first_format);
@@ -64,27 +157,42 @@ void read_telemetry(mp4::Mp4Stream& file, CameraInfo& info)
         return;
     }
 
-    std::optional<types::QuaternionVec> quaternions(std::in_place);
-    std::optional<types::GyroVec> gyro_data(std::in_place);
-    const auto read_record = [&](const gpmf::RecordView& record, const gpmf::Modifiers& modifiers) {
-        switch (record.key) {
-        case "CORI"_fc:
-            append_sensor_samples<4>(record, modifiers, quaternions, [](auto sample) {
-                // GoPro stores W,-X,-Y,-Z relative to the OpenCV camera frame.
-                return types::Tuple4d(-sample[1], -sample[2], -sample[3], sample[0]);
-            });
-            break;
-        case "GYRO"_fc:
-            append_sensor_samples<3>(record, modifiers, gyro_data, [](auto sample) {
-                // Convert the GoPro ZXY axes to the OpenCV representation in rad/s.
-                return types::Tuple4d(0.0, -sample[1], -sample[0], -sample[2]);
-            });
-            break;
-        }
-    };
-
+    std::map<FourCC, SensorStream> streams;
     mp4::SampleReader reader(file, *track);
     mp4::SampleReader::SampleInfo sample;
+    const auto read_record = [&](const gpmf::RecordView& record, const gpmf::Modifiers& modifiers) {
+        const auto axes = sensor_axes(record.key);
+        if (axes == 0 || record.repeat == 0) {
+            return;
+        }
+        auto& stream = streams[record.key];
+        if (stream.failed) {
+            return;
+        }
+
+        const auto batch = gpmf::sample_batch(record, modifiers, sample.timestamp, sample.duration);
+        if (record.key == "CORI"_fc && stream.batches.empty()) {
+            if (batch.timestamp) {
+                CLST_LOG_DEBUG("First GoPro CORI sample has STMP {} (time origin)", *batch.timestamp);
+            } else {
+                CLST_LOG_DEBUG("STMP is unavailable for the first GoPro CORI sample");
+            }
+        }
+        stream.batches.push_back(batch);
+
+        // Preserve stored axis order for newly exposed streams.
+        gpmf::Modifiers scale_only;
+        scale_only.scale = modifiers.scale;
+        const bool orient = record.key == "GYRO"_fc || record.key == "CORI"_fc;
+        const auto values = gpmf::decode_scaled_samples(record, orient ? modifiers : scale_only, axes);
+        if (!values) {
+            CLST_LOG_WARN("Invalid or unsupported GPMF sensor data in {}", fourcc_str<false>(record.key));
+            stream.failed = true;
+            stream.values.clear();
+            return;
+        }
+        stream.values.insert(stream.values.end(), values->begin(), values->end());
+    };
     while (reader.read_next(sample)) {
         if (const auto result = gpmf::visit_payload(sample.data, read_record); !result) {
             CLST_LOG_WARN("Malformed GPMF in timed sample {} ({})", sample.sample_idx, gpmf::describe(result.error()));
@@ -92,17 +200,73 @@ void read_telemetry(mp4::Mp4Stream& file, CameraInfo& info)
         }
     }
 
-    if (quaternions && !quaternions->empty()) {
-        info.extras[GroupId::SensorData][KeyId::CameraQuaternionData] = std::move(*quaternions);
+    const double frame_rate = video_info && video_info->is_cfr && std::isfinite(video_info->fps) && video_info->fps > 0.0
+        ? video_info->fps : 0.0;
+    const auto video_frames = video_info && video_info->nb_frames > 0 ? static_cast<std::size_t>(video_info->nb_frames) : 0;
+    std::optional<gpmf::SampleClock> clock;
+    if (const auto cori = streams.find("CORI"_fc); cori != streams.end() && !cori->second.batches.empty()) {
+        const double first_frame_packet = cori->second.batches.front().start;
+        for (auto& [key, stream] : streams) {
+            for (auto& batch : stream.batches) {
+                batch.start -= first_frame_packet;
+            }
+        }
+        clock = gpmf::estimate_sample_clock(cori->second.batches, cori->second.failed ? 0.0 : frame_rate);
+    } else {
+        CLST_LOG_DEBUG("STMP reference from GoPro CORI is unavailable");
     }
-    if (gyro_data && !gyro_data->empty()) {
-        info.extras[GroupId::SensorData][KeyId::GyroData] = std::move(*gyro_data);
+    // SHUT provides a first-frame reference on older cameras.
+    for (const auto key : {"SHUT"_fc, "GYRO"_fc, "ACCL"_fc}) {
+        if (clock) {
+            break;
+        }
+        if (const auto stream = streams.find(key); stream != streams.end()) {
+            clock = gpmf::estimate_sample_clock(stream->second.batches);
+        }
+    }
+
+    for (const auto& [key, stream] : streams) {
+        if (stream.failed || stream.values.empty()) {
+            continue;
+        }
+        if (key == "CORI"_fc) {
+            store_camera_orientation(info.extras[GroupId::SensorData], stream, video_frames, frame_rate, clock);
+            continue;
+        }
+        const auto timing = stream_timing(key, stream, clock);
+        if (!timing) {
+            continue;
+        }
+        auto& data = info.extras[GroupId::SensorData];
+        switch (key) {
+        case "GYRO"_fc:
+            data[KeyId::GyroData] = timed_samples<3>(stream, *timing, [](double timestamp, auto values) {
+                // Convert the GoPro ZXY axes to the OpenCV representation in rad/s.
+                return types::Tuple4d(timestamp, -values[1], -values[0], -values[2]);
+            });
+            break;
+        case "ACCL"_fc:
+            data[KeyId::AccData] = timed_samples<3>(stream, *timing, raw_sample<3>);
+            break;
+        case "SHUT"_fc:
+            data[KeyId::ExposureData] = timed_samples<1>(stream, *timing, raw_sample<1>);
+            break;
+        case "GRAV"_fc: case "WRGB"_fc:
+            data[fourcc_str<false>(key)] = timed_samples<3>(stream, *timing, raw_sample<3>);
+            break;
+        case "IORI"_fc:
+            data[fourcc_str<false>(key)] = timed_samples<4>(stream, *timing, raw_sample<4>);
+            break;
+        case "ISOE"_fc: case "ISOG"_fc: case "WBAL"_fc: case "SROT"_fc:
+            data[fourcc_str<false>(key)] = timed_samples<1>(stream, *timing, raw_sample<1>);
+            break;
+        }
     }
 }
 
 } // namespace
 
-bool detect_gopro(mp4::Mp4Stream& file, CameraInfo& info, bool metadata_only) noexcept
+bool detect_gopro(mp4::Mp4Stream& file, CameraInfo& info, bool metadata_only, const VideoInfo* video_info) noexcept
 {
     CLST_LOG_INFO("Probing GoPro...");
     types::VecBytes data;
@@ -131,7 +295,7 @@ bool detect_gopro(mp4::Mp4Stream& file, CameraInfo& info, bool metadata_only) no
     }
 
     info.extras[GroupId::Other]["GPMF"] = std::move(data);
-    read_telemetry(file, info);
+    read_telemetry(file, info, video_info);
     return true;
 }
 

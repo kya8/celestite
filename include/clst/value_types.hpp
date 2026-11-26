@@ -45,7 +45,7 @@ using AccVec      = std::vector<Tuple4d>;
 using ExposureVec = std::vector<Tuple2d>;
 
 using QuaternionVec      = std::vector<Tuple4d>;  // X, Y, Z, W
-using TimedQuaternionVec = std::vector<Tuple5d>;
+using TimedQuaternionVec = std::vector<Tuple5d>;  // Seconds from the first frame, X, Y, Z, W
 
 using GpsRecord  = std::tuple<bool, double, double, double, double, double, double>; // is_acquired, timestamp, lat, lon, altitude, speed, track
 using GpsDataVec = std::vector<GpsRecord>;

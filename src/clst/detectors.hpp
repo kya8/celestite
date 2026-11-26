@@ -8,8 +8,10 @@
 
 namespace clst {
 
+struct VideoInfo;
+
 bool
-detect_gopro(mp4::Mp4Stream& file, CameraInfo& info, bool metadata_only = false) noexcept;
+detect_gopro(mp4::Mp4Stream& file, CameraInfo& info, bool metadata_only, const VideoInfo* video_info) noexcept;
 
 bool
 detect_insta360(mp4::Mp4Stream& file, CameraInfo& info, bool metadata_only = false) noexcept;
