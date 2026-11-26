@@ -15,8 +15,8 @@
 
 namespace clst::cli {
 
-enum class ParseError {
-    none,
+enum class ParseStatus {
+    ok,
     unknown_option,
     missing_value,
     invalid_value,
@@ -25,11 +25,11 @@ enum class ParseError {
 };
 
 struct [[nodiscard]] ParseResult {
-    ParseError error;
+    ParseStatus error;
     // argc on ordinary completion, or the argv index of the error or stop flag.
     int index;
 
-    constexpr explicit operator bool() const noexcept { return error == ParseError::none; }
+    constexpr explicit operator bool() const noexcept { return error == ParseStatus::ok; }
 };
 
 namespace detail {
@@ -278,7 +278,7 @@ class Parser {
     private:
         friend class Parser;
 
-        constexpr EarlyExitResult(ParseError error, int index, const std::string_view* early_exit = nullptr) noexcept
+        constexpr EarlyExitResult(ParseStatus error, int index, const std::string_view* early_exit = nullptr) noexcept
             : ParseResult{error, index}, early_exit_(early_exit) {}
 
         const std::string_view* early_exit_;
@@ -305,7 +305,7 @@ public:
             const char* const token = argv[args.index];
             if (positional_only || token[0] != '-' || token[1] == '\0') {
                 if (!on_positional(token)) {
-                    return {ParseError::unexpected_positional, args.index};
+                    return {ParseStatus::unexpected_positional, args.index};
                 }
                 continue;
             }
@@ -333,7 +333,7 @@ public:
                     const char* suffix = nullptr;
                     const auto name = detail::text_value<std::string_view>(token);
                     const auto result = consume<AliasForm::short_alias>(name, suffix, args, config);
-                    if (result.error != ParseError::unknown_option) {
+                    if (result.error != ParseStatus::unknown_option) {
                         if (should_return<AliasForm::short_alias>(result)) {
                             return result;
                         }
@@ -351,7 +351,7 @@ public:
                 }
             }
         }
-        return {ParseError::none, argc};
+        return {ParseStatus::ok, argc};
     }
 
 private:
@@ -368,14 +368,14 @@ private:
     template<AliasForm Form>
     static constexpr Result consume(auto name, const char*& suffix, detail::Arguments& args, Config& config) noexcept(nothrow_bindings)
     {
-        auto error = ParseError::unknown_option;
+        auto error = ParseStatus::unknown_option;
         const std::string_view* early_exit = nullptr;
         const auto try_binding = [&]<class Binding> {
             if constexpr (Binding::template has_alias<Form>) {
                 if (const auto match = Binding::template match<Form>(name)) {
                     error = apply<Form, Binding>(suffix, args, config);
                     if constexpr (Binding::kind == BindingKind::stop) {
-                        if (error == ParseError::none) {
+                        if (error == ParseStatus::ok) {
                             early_exit = match;
                         }
                     }
@@ -393,7 +393,7 @@ private:
     }
 
     template<AliasForm Form, class Binding>
-    static constexpr ParseError apply(const char*& suffix, detail::Arguments& args, Config& config)
+    static constexpr ParseStatus apply(const char*& suffix, detail::Arguments& args, Config& config)
         noexcept(detail::nothrow_binding<Config, Binding>())
     {
         auto& field = config.*Binding::member;
@@ -408,17 +408,17 @@ private:
             }
             if (!value) {
                 if (args.index + 1 == args.argc) {
-                    return ParseError::missing_value;
+                    return ParseStatus::missing_value;
                 }
                 value = args.argv[++args.index];
             }
             if (!detail::assign_value(field, value)) {
-                return ParseError::invalid_value;
+                return ParseStatus::invalid_value;
             }
         } else {
             if constexpr (Form == AliasForm::long_option) {
                 if (suffix) {
-                    return ParseError::unexpected_value;
+                    return ParseStatus::unexpected_value;
                 }
             }
             if constexpr (Binding::kind == BindingKind::count) {
@@ -430,7 +430,7 @@ private:
                 field = true;
             }
         }
-        return ParseError::none;
+        return ParseStatus::ok;
     }
 };
 

@@ -138,6 +138,7 @@ void test_early_exit()
         return true;
     });
     CLST_ASSERT(stopped);
+    CLST_ASSERT_EQ(stopped.error, ParseStatus::ok);
     CLST_ASSERT(stopped.is_early_exit());
     CLST_ASSERT_EQ(stopped.index, 2);
     CLST_ASSERT_EQ(stopped.early_exit_opt(), "--help");
@@ -157,13 +158,14 @@ void test_early_exit()
     const char* const complete[] = {"tool", "-v"};
     const auto normal = StopArgs::parse(2, complete, config);
     CLST_ASSERT(normal && !normal.is_early_exit());
+    CLST_ASSERT_EQ(normal.error, ParseStatus::ok);
     CLST_ASSERT_EQ(normal.index, 2);
     CLST_ASSERT_EQ(normal.early_exit_opt().data(), nullptr);
 
     const char* const unexpected_value[] = {"tool", "--help=value"};
     const auto invalid = StopArgs::parse(2, unexpected_value, config);
     CLST_ASSERT(!invalid && !invalid.is_early_exit());
-    CLST_ASSERT_EQ(invalid.error, ParseError::unexpected_value);
+    CLST_ASSERT_EQ(invalid.error, ParseStatus::unexpected_value);
     CLST_ASSERT_EQ(invalid.index, 1);
     CLST_ASSERT_EQ(invalid.early_exit_opt().data(), nullptr);
     CLST_ASSERT(!config.help);
@@ -171,7 +173,7 @@ void test_early_exit()
     const char* const earlier_error[] = {"tool", "--unknown", "--help"};
     const auto failed = StopArgs::parse(3, earlier_error, config);
     CLST_ASSERT(!failed && !failed.is_early_exit());
-    CLST_ASSERT_EQ(failed.error, ParseError::unknown_option);
+    CLST_ASSERT_EQ(failed.error, ParseStatus::unknown_option);
     CLST_ASSERT_EQ(failed.index, 1);
     CLST_ASSERT(!config.help);
 }
@@ -251,7 +253,7 @@ void test_positionals()
 }
 
 template<std::size_t N>
-void expect_error(Config& config, const char* const (&argv)[N], ParseError error, int index)
+void expect_error(Config& config, const char* const (&argv)[N], ParseStatus error, int index)
 {
     const auto result = Args::parse(static_cast<int>(N), argv, config);
     CLST_ASSERT(!result);
@@ -262,26 +264,26 @@ void expect_error(Config& config, const char* const (&argv)[N], ParseError error
 void test_errors()
 {
     Config config;
-    expect_error(config, {"tool", "--jobs=4", "--jobs", "5tail", "--force"}, ParseError::invalid_value, 3);
+    expect_error(config, {"tool", "--jobs=4", "--jobs", "5tail", "--force"}, ParseStatus::invalid_value, 3);
     CLST_ASSERT_EQ(config.jobs, 4);
     CLST_ASSERT(!config.force);
-    expect_error(config, {"tool", "--jobs=999999999999999999999999"}, ParseError::invalid_value, 1);
-    expect_error(config, {"tool", "--jobs="}, ParseError::invalid_value, 1);
-    expect_error(config, {"tool", "-j0,2,3"}, ParseError::invalid_value, 1);
+    expect_error(config, {"tool", "--jobs=999999999999999999999999"}, ParseStatus::invalid_value, 1);
+    expect_error(config, {"tool", "--jobs="}, ParseStatus::invalid_value, 1);
+    expect_error(config, {"tool", "-j0,2,3"}, ParseStatus::invalid_value, 1);
     CLST_ASSERT_EQ(config.jobs, 4);
-    expect_error(config, {"tool", "--jobs"}, ParseError::missing_value, 1);
-    expect_error(config, {"tool", "-vj"}, ParseError::missing_value, 1);
+    expect_error(config, {"tool", "--jobs"}, ParseStatus::missing_value, 1);
+    expect_error(config, {"tool", "-vj"}, ParseStatus::missing_value, 1);
     CLST_ASSERT_EQ(config.verbosity, 1);
-    expect_error(config, {"tool", "--force="}, ParseError::unexpected_value, 1);
+    expect_error(config, {"tool", "--force="}, ParseStatus::unexpected_value, 1);
     CLST_ASSERT(!config.force);
-    expect_error(config, {"tool", "--unknown=value"}, ParseError::unknown_option, 1);
-    expect_error(config, {"tool", "-fx"}, ParseError::unknown_option, 1);
+    expect_error(config, {"tool", "--unknown=value"}, ParseStatus::unknown_option, 1);
+    expect_error(config, {"tool", "-fx"}, ParseStatus::unknown_option, 1);
     CLST_ASSERT(config.force);
-    expect_error(config, {"tool", "-"}, ParseError::unexpected_positional, 1);
+    expect_error(config, {"tool", "-"}, ParseStatus::unexpected_positional, 1);
 
     const char* const argv[] = {"tool", "--jobs=3", "file"};
     const auto rejected = Args::parse(3, argv, config, [](const char*) noexcept { return false; });
-    CLST_ASSERT_EQ(rejected.error, ParseError::unexpected_positional);
+    CLST_ASSERT_EQ(rejected.error, ParseStatus::unexpected_positional);
     CLST_ASSERT_EQ(rejected.index, 2);
     CLST_ASSERT_EQ(config.jobs, 3);
 
