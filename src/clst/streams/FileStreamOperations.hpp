@@ -21,11 +21,16 @@ std::size_t transfer_file_exact(Buffer* buffer, std::size_t size, Transfer trans
     auto remaining = size;
     for (;;) {
         const auto result = transfer(buffer, remaining);
-        throw_file_error(result.error, operation);
+        if (result.error && result.error != std::errc::interrupted) {
+            throw std::system_error(result.error, operation);
+        }
         if (result.bytes_transferred == remaining) {
             return size;
         }
         if (result.bytes_transferred == 0) {
+            if (result.error) {
+                continue; // EINTR without progress.
+            }
             throw std::system_error(no_progress_error, operation);
         }
         buffer += result.bytes_transferred;

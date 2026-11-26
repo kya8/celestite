@@ -67,10 +67,12 @@ public:
     // Zero bytes without an error on a nonempty read denotes EOF.
     [[nodiscard]] TransferResult read(void* buffer, std::size_t size) noexcept;
     std::size_t read_ex(void* buffer, std::size_t size);
+    void read_exact(void* buffer, std::size_t size) { read_ex(buffer, size); }
 
     // A buffered write reports bytes accepted by the stream. A later flush can fail.
     [[nodiscard]] TransferResult write(const void* buffer, std::size_t size) noexcept;
     std::size_t write_ex(const void* buffer, std::size_t size);
+    void write_exact(const void* buffer, std::size_t size) { write_ex(buffer, size); }
 
     // Positioned transfers preserve the stream cursor on success.
     // Positioned writes require a non-append mode.

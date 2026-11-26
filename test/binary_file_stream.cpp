@@ -1,6 +1,7 @@
 #include "test.h"
 #include "clst/mp4/mp4.hpp"
 #include "clst/streams/BinaryFileStream.hpp"
+#include "clst/streams/FileStreamOperations.hpp"
 #include "clst/streams/NativeBinaryFileStream.hpp"
 #include <array>
 #include <chrono>
@@ -249,20 +250,22 @@ void check_modes_and_eof(const std::string& filename)
     CLST_ASSERT(eof.bytes_transferred == 0 && !eof.error);
     stream.seek_ex(-1, SeekFrom::End);
     try {
-        (void)stream.read_ex(data.data(), 2);
+        stream.read_exact(data.data(), 2);
         CLST_ASSERT(false);
     } catch (const std::system_error& error) {
         CLST_ASSERT(error.code() == std::make_error_code(std::io_errc::stream));
     }
     CLST_ASSERT(stream.tell_ex() == 3);
-    CLST_ASSERT(stream.read_ex(data.data(), 0) == 0);
-    CLST_ASSERT_THROW(stream.write_ex("x", 1), std::system_error);
+    stream.read_exact(data.data(), 0);
+    CLST_ASSERT_THROW(stream.write_exact("x", 1), std::system_error);
     stream.close_ex();
 
     stream.open_ex(filename.c_str(), FileStreamMode::ReadExtended);
-    CLST_ASSERT(stream.read_ex(data.data(), 1) == 1 && data.front() == 'a');
-    CLST_ASSERT(stream.write_ex("B", 1) == 1);
-    CLST_ASSERT(stream.read_ex(data.data(), 1) == 1 && data.front() == 'c');
+    stream.read_exact(data.data(), 1);
+    CLST_ASSERT(data.front() == 'a');
+    stream.write_exact("B", 1);
+    stream.read_exact(data.data(), 1);
+    CLST_ASSERT(data.front() == 'c');
     stream.close_ex();
 
     stream.open_ex(filename.c_str(), FileStreamMode::Append);
@@ -294,6 +297,32 @@ void check_modes_and_eof(const std::string& filename)
     stream.seek_ex(0);
     CLST_ASSERT(stream.read_ex(data.data(), 1) == 1 && data.front() == 'z');
     stream.close_ex();
+}
+
+void check_interrupted_exact_transfer()
+{
+    std::array<char, 3> data{};
+    const auto interrupted = std::make_error_code(std::errc::interrupted);
+    int calls = 0;
+    const auto read = [&](void* buffer, std::size_t size) -> clst::TransferResult {
+        auto* output = static_cast<char*>(buffer);
+        switch (++calls) {
+        case 1:
+            return {0, interrupted};
+        case 2:
+            CLST_ASSERT(output == data.data() && size == 3);
+            output[0] = 'a';
+            return {1, interrupted};
+        default:
+            CLST_ASSERT(output == data.data() + 1 && size == 2);
+            output[0] = 'b';
+            output[1] = 'c';
+            return {2, {}};
+        }
+    };
+
+    CLST_ASSERT(clst::detail::read_file_exact(data.data(), data.size(), read) == data.size());
+    CLST_ASSERT(calls == 3 && std::string_view(data.data(), data.size()) == "abc");
 }
 
 void check_cache_boundaries(const std::string& filename)
@@ -710,7 +739,7 @@ void check_flush_retry(const std::string& filename)
     {
         const ScopedFileSizeLimit limit(direct_limit);
         try {
-            (void)stream.write_ex(large.data(), large.size());
+            stream.write_exact(large.data(), large.size());
             CLST_ASSERT(false);
         } catch (const std::system_error& error) {
             CLST_ASSERT(error.code() == std::errc::file_too_large);
@@ -801,6 +830,7 @@ int binary_file_stream(int, char*[])
     check_release(temp.filename("release.bin"));
     check_modes_and_eof<BinaryFileStream>(temp.filename("legacy.bin"));
     check_modes_and_eof<NativeBinaryFileStream>(temp.filename("native.bin"));
+    check_interrupted_exact_transfer();
     check_cache_boundaries(temp.filename("cache.bin"));
     check_configurable_buffer(temp.filename("buffer-size.bin"));
     check_native_copy(temp.filename("copy-input.bin"), temp.filename("copy-output.bin"));

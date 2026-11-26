@@ -38,6 +38,9 @@ public:
     void flush_ex();
     std::size_t read_ex(void* buf, std::size_t n);
     std::size_t write_ex(const void* buf, std::size_t n);
+    // Transfer exactly n bytes or throw std::system_error.
+    void read_exact(void* buf, std::size_t n) { read_ex(buf, n); }
+    void write_exact(const void* buf, std::size_t n) { write_ex(buf, n); }
     void seek_ex(OffsetType offset, SeekFrom from = SeekFrom::Begin);
     [[nodiscard]] OffsetType tell_ex() const;
     [[nodiscard]] OffsetType get_length_ex() const;
