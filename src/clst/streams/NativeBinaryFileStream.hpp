@@ -110,8 +110,10 @@ public:
     void prefetch_ex(OffsetType offset, OffsetType size);
 
 private:
+    friend class WriteStreamMixin;
     struct Impl;
 
+    std::size_t copy_from_native(NativeBinaryFileStream& source, std::size_t size);
     Impl& impl() noexcept;
     const Impl& impl() const noexcept;
 

@@ -718,6 +718,31 @@ void check_positioned_write_error(const std::string& filename)
     CLST_ASSERT(std::string_view(data.data(), data.size()) == expected && stream.tell_ex() == 2);
 }
 
+#ifdef __linux__
+void check_native_copy_error(const std::string& input_filename, const std::string& output_filename)
+{
+    NativeBinaryFileStream input(input_filename.c_str(), FileStreamMode::WriteExtended);
+    input.write_ex("abcdef", 6);
+    input.seek_ex(0);
+    NativeBinaryFileStream output(output_filename.c_str(), FileStreamMode::Write);
+    output.copy_from(input, 1);
+    // The buffered fallback retains the byte in memory on filesystems without native copy support.
+    if (native_length(output) == 0) {
+        return;
+    }
+
+    const ScopedFileSizeLimit limit(4);
+    try {
+        output.copy_from(input, 5);
+        CLST_ASSERT(false);
+    } catch (const std::system_error& error) {
+        CLST_ASSERT(error.code() == std::errc::file_too_large);
+    }
+    const auto copied = native_length(output);
+    CLST_ASSERT(copied >= 1 && copied <= 4);
+    CLST_ASSERT(output.tell_ex() == copied && input.tell_ex() == copied);
+}
+#endif
 #endif
 
 void check_truncated_mp4(const std::string& filename)
@@ -752,6 +777,9 @@ int binary_file_stream(int, char*[])
 #if defined(RLIMIT_FSIZE) && defined(SIGXFSZ)
     check_flush_retry(temp.filename("flush.bin"));
     check_positioned_write_error(temp.filename("positioned-write-error.bin"));
+#ifdef __linux__
+    check_native_copy_error(temp.filename("copy-error-input.bin"), temp.filename("copy-error-output.bin"));
+#endif
 #endif
     check_truncated_mp4(temp.filename("truncated.mp4"));
     return 0;

@@ -28,6 +28,10 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#if defined(__linux__)
+#include <optional>
+#include <sys/syscall.h>
+#endif
 #endif
 
 namespace clst {
@@ -523,6 +527,62 @@ std::error_code native_prefetch(NativeHandle handle, OffsetType offset, OffsetTy
 #endif
 }
 
+#if defined(__linux__)
+
+#if defined(SYS_copy_file_range)
+long copy_range_syscall(NativeHandle source, NativeHandle destination, std::size_t size) noexcept
+{
+    long result;
+    do {
+        result = ::syscall(SYS_copy_file_range, source, nullptr, destination, nullptr, size, 0u);
+    } while (result == -1 && errno == EINTR);
+    return result;
+}
+#endif
+
+#if defined(SYS_copy_file_range)
+const bool native_range_copy_available = [] {
+    const auto saved_errno = errno;
+    // EBADF confirms the call reached the kernel's descriptor checks.
+    const bool available = copy_range_syscall(-1, -1, 1) == -1 && errno == EBADF;
+    errno = saved_errno;
+    return available;
+}();
+#else
+constexpr bool native_range_copy_available = false;
+#endif
+
+bool native_range_copy_same_filesystem(NativeHandle source, NativeHandle destination) noexcept
+{
+    // Older kernels could report a successful cross-filesystem copy without moving any data.
+    struct stat source_info;
+    struct stat destination_info;
+    return ::fstat(source, &source_info) == 0 &&
+           ::fstat(destination, &destination_info) == 0 &&
+           source_info.st_dev == destination_info.st_dev;
+}
+
+std::optional<TransferResult> native_copy_range(NativeHandle source, NativeHandle destination, std::size_t size) noexcept
+{
+#if defined(SYS_copy_file_range)
+    const auto request = std::min<std::size_t>(size, std::numeric_limits<ssize_t>::max());
+    const auto result = copy_range_syscall(source, destination, request);
+    if (result >= 0)
+        return TransferResult{static_cast<std::size_t>(result), {}};
+
+    const auto error = posix_error();
+    if (error.value() == ENOSYS || error.value() == EXDEV || error.value() == EOPNOTSUPP)
+        return std::nullopt;
+    return TransferResult{0, error};
+#else
+    (void)source;
+    (void)destination;
+    (void)size;
+    return std::nullopt;
+#endif
+}
+
+#endif // __linux__
 #endif
 
 } // namespace
@@ -1014,6 +1074,39 @@ std::size_t NativeBinaryFileStream::write_at_ex(OffsetType offset, const void* b
         offset += static_cast<OffsetType>(result.bytes_transferred);
         return result;
     });
+}
+
+std::size_t NativeBinaryFileStream::copy_from_native(NativeBinaryFileStream& source, std::size_t size)
+{
+    if (size == 0)
+        return 0;
+    if (this == &source)
+        throw std::system_error(std::make_error_code(std::errc::invalid_argument), "Copy file range within one stream");
+
+#if defined(__linux__)
+    auto& input = source.impl();
+    auto& output = impl();
+    if (!input.readable() || !output.writable() || output.append() || !input.regular_file || !output.regular_file ||
+        !native_range_copy_available || !native_range_copy_same_filesystem(input.handle, output.handle))
+        return 0;
+
+    detail::throw_file_error(input.synchronize(), "Synchronize copy source");
+    detail::throw_file_error(output.synchronize(), "Synchronize copy destination");
+
+    std::size_t copied = 0;
+    while (copied < size) {
+        const auto result = native_copy_range(input.handle, output.handle, size - copied);
+        if (!result)
+            break;
+        detail::throw_file_error(result->error, "Copy file range");
+        if (result->bytes_transferred == 0)
+            throw std::system_error(std::make_error_code(std::io_errc::stream), "Copy file range before EOF");
+        copied += result->bytes_transferred;
+    }
+    return copied;
+#else
+    return 0;
+#endif
 }
 
 std::error_code NativeBinaryFileStream::flush() noexcept

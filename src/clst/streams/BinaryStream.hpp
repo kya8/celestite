@@ -246,6 +246,10 @@ public:
             throw StreamError{"Stream not open"};
         }
 
+        // A partial native copy leaves both cursors at the first uncopied byte.
+        if constexpr (requires { { self.copy_from_native(in, n) } -> std::same_as<std::size_t>; }) {
+            n -= self.copy_from_native(in, n);
+        }
         if (n == 0) {
             return;
         }
