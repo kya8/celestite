@@ -1,6 +1,7 @@
 #include "track.hpp"
 #include "clst/fourcc.hpp"
 #include <optional>
+#include <system_error>
 #include "helper_templates.hpp"
 
 using std::uint32_t, std::uint64_t, std::int32_t, std::uint8_t;
@@ -22,19 +23,19 @@ parse_trak(Mp4Stream& file, const Mp4Stream::AtomInfo& trak_atom) noexcept try {
         file.read_num(ver);
         file.read_num<Endian::BE, uint32_t, 3>(_flag);
         if (ver == 1) {
-            file.seek(8+8, SeekFrom::Current);
+            file.seek_ex(8+8, SeekFrom::Current);
             file.read_num(track_info.trak_id);
-            file.seek(4, SeekFrom::Current);
+            file.seek_ex(4, SeekFrom::Current);
             file.read_num(track_info.tkhd_duration);
         } else { // version == 0
-            file.seek(4+4, SeekFrom::Current);
+            file.seek_ex(4+4, SeekFrom::Current);
             file.read_num(track_info.trak_id);
-            file.seek(4, SeekFrom::Current);
+            file.seek_ex(4, SeekFrom::Current);
             uint32_t duration;
             file.read_num(duration);
             track_info.tkhd_duration = duration;
         }
-        file.seek(4*2+2+2+2+2, SeekFrom::Current);
+        file.seek_ex(4*2+2+2+2+2, SeekFrom::Current);
         for (auto& x : track_info.tkhd_matrix) {
             file.read_num(x);
         }
@@ -48,7 +49,7 @@ parse_trak(Mp4Stream& file, const Mp4Stream::AtomInfo& trak_atom) noexcept try {
         uint8_t ver; uint32_t _flag;
         file.read_num(ver);
         file.read_num<Endian::BE, uint32_t, 3>(_flag);
-        file.seek(ver==1? 8+8 : 4+4, SeekFrom::Current);
+        file.seek_ex(ver==1? 8+8 : 4+4, SeekFrom::Current);
         file.read_num(track_info.mdhd_timescale);
         if (ver==1) {
             file.read_num(track_info.mdhd_duration);
@@ -64,7 +65,7 @@ parse_trak(Mp4Stream& file, const Mp4Stream::AtomInfo& trak_atom) noexcept try {
         uint8_t ver; uint32_t _flag;
         file.read_num(ver);
         file.read_num<Endian::BE, uint32_t, 3>(_flag);
-        file.seek(4, SeekFrom::Current);
+        file.seek_ex(4, SeekFrom::Current);
         file.read_num(track_info.hdlr_type);
     }
     const auto minf_atom = file.seek_to_atom_data("minf"_fc, mdia_atom);
@@ -74,16 +75,16 @@ parse_trak(Mp4Stream& file, const Mp4Stream::AtomInfo& trak_atom) noexcept try {
     //stsd
     {
         file.seek_to_atom_data("stsd"_fc, stbl_atom);
-        file.seek(4, SeekFrom::Current);
+        file.seek_ex(4, SeekFrom::Current);
         file.read_num(track_info.sample_desc_count);
-        file.seek(4, SeekFrom::Current);
+        file.seek_ex(4, SeekFrom::Current);
         file.read_num(track_info.stsd_first_format);
     }
 
     //loop over boxes in stbl
     //Existence of required atoms is not checked.
-    file.seek(stbl_atom.data_offset());
-    while(file.tell() < (OffsetType)stbl_atom.end_offset()) { // int64_t?
+    file.seek_ex(stbl_atom.data_offset());
+    while(file.tell_ex() < (OffsetType)stbl_atom.end_offset()) { // int64_t?
         const auto atom = file.parse_atom();
         uint8_t ver; uint32_t _flag; // not used here...
         file.read_num(ver);
@@ -127,12 +128,14 @@ parse_trak(Mp4Stream& file, const Mp4Stream::AtomInfo& trak_atom) noexcept try {
             }
         }
 
-        file.seek(atom.end_offset());
+        file.seek_ex(atom.end_offset());
     }
 
     return track_info;
 }
 } catch (const StreamError&) {
+    return {};
+} catch (const std::system_error&) {
     return {};
 }
 
@@ -142,10 +145,10 @@ parse_trak(Mp4Stream& file, const Mp4Stream::AtomInfo& trak_atom) noexcept try {
 std::vector<TrackInfo>
 get_tracks(Mp4Stream& file) noexcept try {
 {
-    file.seek(0);
+    file.seek_ex(0);
     std::vector<TrackInfo> result_tracks;
 
-    const auto moov = file.seek_to_atom_data("moov"_fc, file.get_length());
+    const auto moov = file.seek_to_atom_data("moov"_fc, file.get_length_ex());
     const auto atoms_in_moov = file.get_all_atoms(moov.data_size());
 
     for (const auto& atom : atoms_in_moov) {
@@ -160,6 +163,8 @@ get_tracks(Mp4Stream& file) noexcept try {
     return result_tracks;
 }
 } catch (const StreamError&) {
+    return {};
+} catch (const std::system_error&) {
     return {};
 }
 
@@ -211,10 +216,10 @@ SampleReader::read_next(SampleInfo& out) noexcept try {
     for(auto i = sample_idx - sample_idx_in_chunk; i < sample_idx; ++i) {
         sample_offset_in_chunk += (track_info.stsz_sample_size == 0? track_info.stsz[i] : track_info.stsz_sample_size);
     }
-    file.seek(track_info.stco[chunk_idx] + sample_offset_in_chunk);
+    file.seek_ex(track_info.stco[chunk_idx] + sample_offset_in_chunk);
     const auto sample_size = track_info.stsz_sample_size == 0 ? track_info.stsz[sample_idx] : track_info.stsz_sample_size;
     out.data.resize(sample_size);
-    file.read(out.data.data(), out.data.size());
+    file.read_ex(out.data.data(), out.data.size());
 
     //update state for next read:
     ++sample_idx;
@@ -229,6 +234,8 @@ SampleReader::read_next(SampleInfo& out) noexcept try {
     return true;
 }
 } catch (const StreamError&) {
+    return false;
+} catch (const std::system_error&) {
     return false;
 }
 

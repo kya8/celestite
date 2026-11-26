@@ -10,6 +10,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <system_error>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -279,14 +280,17 @@ bool detect_gopro(mp4::Mp4Stream& file, CameraInfo& info, bool metadata_only, co
     CLST_LOG_INFO("Probing GoPro...");
     types::VecBytes data;
     try {
-        file.seek(0);
-        const auto moov = file.seek_to_atom_data("moov"_fc, file.get_length());
+        file.seek_ex(0);
+        const auto moov = file.seek_to_atom_data("moov"_fc, file.get_length_ex());
         const auto udta = file.seek_to_atom_data("udta"_fc, moov);
         const auto atom = file.seek_to_atom_data("GPMF"_fc, udta);
         if (atom.data_size() != 0) {
             data = file.read_atom_data(atom);
         }
     } catch (const StreamError&) {
+        CLST_LOG_DEBUG("Could not read GoPro GPMF box");
+        return false;
+    } catch (const std::system_error&) {
         CLST_LOG_DEBUG("Could not read GoPro GPMF box");
         return false;
     }

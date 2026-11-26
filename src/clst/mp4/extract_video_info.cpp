@@ -4,6 +4,7 @@
 #include "clst/log.hpp"
 #include <optional>
 #include <range.hpp>
+#include <system_error>
 
 //NOT-Implemented: handle edit lists; Multiple stsd sample desc entries; frames per sample.
 
@@ -23,6 +24,8 @@ seek_atom_recursive(Mp4Stream& file, std::initializer_list<std::uint32_t> fourcc
         }
     } catch (const StreamError&) {
         return {};
+    } catch (const std::system_error&) {
+        return {};
     }
 
     return atom;
@@ -34,8 +37,8 @@ bool
 extract_video_info(Mp4Stream& file, VideoInfo& out, types::VecI32* video_track_idx) noexcept try
 {
     CLST_LOG_INFO("Parsing MP4 video info...");
-    file.seek(0);
-    const auto mvhd = seek_atom_recursive(file, {"moov"_fc, "mvhd"_fc}, file.get_length());
+    file.seek_ex(0);
+    const auto mvhd = seek_atom_recursive(file, {"moov"_fc, "mvhd"_fc}, file.get_length_ex());
     if (!mvhd) {
         return false;
     }
@@ -43,7 +46,7 @@ extract_video_info(Mp4Stream& file, VideoInfo& out, types::VecI32* video_track_i
         std::uint8_t ver; std::uint32_t _flag;
         file.read_num(ver);
         file.read_num<Endian::BE, std::uint32_t, 3>(_flag);
-        file.seek(ver==1? 8+8 : 4+4, SeekFrom::Current);
+        file.seek_ex(ver==1? 8+8 : 4+4, SeekFrom::Current);
         std::uint32_t timescale;
         file.read_num(timescale);
         return timescale;
@@ -117,6 +120,8 @@ extract_video_info(Mp4Stream& file, VideoInfo& out, types::VecI32* video_track_i
 
     return true;
 } catch (const StreamError&) {
+    return false;
+} catch (const std::system_error&) {
     return false;
 }
 

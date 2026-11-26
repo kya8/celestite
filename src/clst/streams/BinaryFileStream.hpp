@@ -2,19 +2,11 @@
 #define CLST_STREAMS_BINARY_FILE_STREAM_HPP
 
 #include "BinaryStream.hpp"
-#include "lfs.hpp"  // 64-bit ftell/fseek
-#include <cassert>
+#include "FileStreamTypes.hpp"
+#include <cstdio>
+#include <expected>
 
 namespace clst {
-
-enum class FileStreamMode {
-    Read,
-    Write,
-    Append,
-    ReadExtended,
-    WriteExtended,
-    AppendExtended
-};
 
 class BinaryFileStream : public RWStreamTag, public RWStreamMixin {
 public:
@@ -27,57 +19,35 @@ public:
     BinaryFileStream(BinaryFileStream&& rhs) noexcept;
     BinaryFileStream& operator=(BinaryFileStream&& rhs) noexcept;
 
-    bool open(const char* filename, FileStreamMode mode = FileStreamMode::Read) noexcept;
-    bool close() noexcept;
+    [[nodiscard]] std::error_code open(const char* filename, FileStreamMode mode = FileStreamMode::Read) noexcept;
+    [[nodiscard]] std::error_code close() noexcept;
+    [[nodiscard]] std::error_code flush() noexcept;
     [[nodiscard]] bool is_open() const noexcept;
-    [[nodiscard]] OffsetType get_length() const noexcept;
-    [[nodiscard]] auto get_handle() const noexcept { return fp; }
+    [[nodiscard]] std::expected<OffsetType, std::error_code> get_length() const noexcept;
+    // Borrowed until close or an ownership transfer.
+    [[nodiscard]] std::FILE* get_handle() const noexcept { return fp_; }
 
-    // FIXME:
-    // read/write should return bytes return. Partial R/W shuoldn't be considered an error.
-    // Use standard system_error.
+    // A nonempty read that returns zero bytes without an error has reached EOF.
+    [[nodiscard]] TransferResult read(void* buf, std::size_t n) noexcept;
+    [[nodiscard]] TransferResult write(const void* buf, std::size_t n) noexcept;
+    [[nodiscard]] std::error_code seek(OffsetType offset, SeekFrom from = SeekFrom::Begin) noexcept;
+    [[nodiscard]] std::expected<OffsetType, std::error_code> tell() const noexcept;
 
-    void read(void* buf, std::size_t n)
-    {
-        assert(is_open());
-        if (n == 0)
-            return;
-        if (fread(buf, n, 1, fp) != 1)
-            throw StreamIoError("File stream read error");
-    }
-    void write(const void* buf, std::size_t n)
-    {
-        assert(is_open());
-        if (n == 0)
-            return;
-        if (fwrite(buf, n, 1, fp) != 1)
-            throw StreamIoError("File stream write error");
-    }
-    void seek(OffsetType offset, SeekFrom from = SeekFrom::Begin)
-    {
-        assert(is_open());
-        if (detail::fseek64(fp, offset, [from]{
-            switch(from) {
-                case(SeekFrom::Begin)  : return SEEK_SET;
-                case(SeekFrom::Current): return SEEK_CUR;
-                case(SeekFrom::End)    : return SEEK_END;
-            }
-            return SEEK_SET;
-        }()) != 0)
-            throw StreamIoError("File stream seek error");
-    }
-    [[nodiscard]] OffsetType tell() const
-    {
-        assert(is_open());
-        const auto ret = detail::ftell64(fp);
-        if (ret == -1L)
-            throw StreamIoError{"File stream tell error"};
-        return ret;
-    }
+    void open_ex(const char* filename, FileStreamMode mode = FileStreamMode::Read);
+    void close_ex();
+    void flush_ex();
+    std::size_t read_ex(void* buf, std::size_t n);
+    std::size_t write_ex(const void* buf, std::size_t n);
+    void seek_ex(OffsetType offset, SeekFrom from = SeekFrom::Begin);
+    [[nodiscard]] OffsetType tell_ex() const;
+    [[nodiscard]] OffsetType get_length_ex() const;
 
 private:
-    FILE* fp = nullptr;
-    OffsetType fsize = -1;
+    enum class Direction { None, Read, Write };
+
+    std::FILE* fp_ = nullptr;
+    FileStreamMode mode_ = FileStreamMode::Read;
+    Direction direction_ = Direction::None;
 };
 
 } // namespace clst

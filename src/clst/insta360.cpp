@@ -10,6 +10,7 @@
 #include <ranges>
 #include <charconv>
 #include <string_view>
+#include <system_error>
 
 using namespace clst::mp4;
 
@@ -73,16 +74,16 @@ bool
 detect_insta360(Mp4Stream& file, CameraInfo& info, bool metadata_only) noexcept try
 {
     CLST_LOG_INFO("Probing Insta360...");
-    file.seek(-magic_len, SeekFrom::End);
+    file.seek_ex(-magic_len, SeekFrom::End);
     unsigned char buf_magic[magic_len] {0};
-    file.read(buf_magic, magic_len);
+    file.read_ex(buf_magic, magic_len);
     if (std::memcmp(buf_magic, magic, magic_len) != 0) {
         CLST_LOG_DEBUG("Insta360 detection failed: magic mismatch.");
         return false;
     }
     CLST_LOG_DEBUG("Insta360 insv magic matched.");
 
-    file.seek(-magic_len-4-4, SeekFrom::End);
+    file.seek_ex(-magic_len-4-4, SeekFrom::End);
     std::uint32_t extra_size, _version;
     file.read_nums<Endian::LE>(extra_size, _version);
     CLST_LOG_DEBUG("insv extra data size: {}, version: {}", extra_size, _version);
@@ -97,13 +98,13 @@ detect_insta360(Mp4Stream& file, CameraInfo& info, bool metadata_only) noexcept 
     std::map<RecordType, std::pair<std::uint32_t, std::uint32_t>> offsets; // (id, (offset, size)). offset is begin of data block
 
     std::int64_t offset = magic_len + 32+4+4 + 1+1+4;
-    file.seek(-offset + 1, SeekFrom::End);
+    file.seek_ex(-offset + 1, SeekFrom::End);
     std::uint8_t first_id;
     file.read_num<Endian::LE>(first_id);
     if (first_id == RecordType::Offsets) { // the `offsets` block specifies offsets for subsequent fields
         std::uint32_t size;
         file.read_num<Endian::LE>(size);
-        file.seek(-offset - size, SeekFrom::End);
+        file.seek_ex(-offset - size, SeekFrom::End);
         std::uint32_t read = 0;
         while ((read += 1+1+4+4) <= size) {
             std::uint8_t id, _format;
@@ -127,26 +128,26 @@ detect_insta360(Mp4Stream& file, CameraInfo& info, bool metadata_only) noexcept 
 
         if (offsets.empty()) { // No offsets
             if (offset >= (std::int64_t)extra_size) break;
-            file.seek(-offset, SeekFrom::End);
+            file.seek_ex(-offset, SeekFrom::End);
             file.read_nums<Endian::LE>(format, id, size);
-            file.seek(-offset - size, SeekFrom::End);
+            file.seek_ex(-offset - size, SeekFrom::End);
             offset += (size + 1+1+4); // next block header start
         }
         else {
             if (iter_offsets == end_offsets) break;
             const auto data_start = -(std::int64_t)extra_size + iter_offsets->second.first;
-            file.seek(data_start + iter_offsets->second.second, SeekFrom::End); // seek to header start
+            file.seek_ex(data_start + iter_offsets->second.second, SeekFrom::End); // seek to header start
             file.read_nums<Endian::LE>(format, id, size);
             const bool skip = id != iter_offsets->first || size != iter_offsets->second.second;
             ++iter_offsets;
             if (skip) continue;
-            file.seek(data_start, SeekFrom::End);
+            file.seek_ex(data_start, SeekFrom::End);
         }
 
         if (id == RecordType::Metadata && format == RecordFormat::Protobuf) { // Normally, this should be the first record.
             CLST_LOG_DEBUG("Found insta360 metadata record. size={}", size);
             std::vector<unsigned char> buf(size);
-            file.read(buf.data(), buf.size());
+            file.read_ex(buf.data(), buf.size());
             Insta360Metadata metadata;
             if (metadata.ParseFromArray(buf.data(), static_cast<int>(buf.size()))) {
                 auto& map = info.extras[GroupId::Metadata];
@@ -306,6 +307,9 @@ detect_insta360(Mp4Stream& file, CameraInfo& info, bool metadata_only) noexcept 
 
     return true;
 } catch (const StreamError&) {
+    CLST_LOG_ERROR("Error while reading mp4 file stream!");
+    return false;
+} catch (const std::system_error&) {
     CLST_LOG_ERROR("Error while reading mp4 file stream!");
     return false;
 }
