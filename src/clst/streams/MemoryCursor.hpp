@@ -2,8 +2,7 @@
 #define CLST_STREAMS_MEMORY_CURSOR_HPP
 
 #include "BinaryStream.hpp"
-#include <cstring> // memcpy
-#include <cassert>
+#include <cstring>
 
 namespace clst {
 
@@ -26,11 +25,9 @@ class CursorCommon {
 protected:
     using Pointer = BytePointer<Mutable>;
 public:
-    CursorCommon(Pointer buf, std::ptrdiff_t len) noexcept :
-        begin_(buf), len_(len), cursor_(buf) {
-        assert(buf != nullptr);
-        assert(len >= 0);
-    }
+    // A null buffer or negative length constructs a closed cursor.
+    CursorCommon(Pointer buf, std::ptrdiff_t len) noexcept
+        : begin_(len >= 0 ? buf : nullptr), len_(begin_ ? len : 0) {}
 
     [[nodiscard]] bool is_open() const noexcept { return this->begin_ != nullptr; }
     [[nodiscard]] auto data() const noexcept { return this->begin_; }
@@ -38,42 +35,75 @@ public:
     [[nodiscard]] OffsetType get_length() const noexcept { return len_; }
     static constexpr bool is_mutable = Mutable;
 
-    [[nodiscard]] OffsetType tell() const noexcept { return cursor_ - begin_; }
-    void seek(OffsetType offset, SeekFrom from = SeekFrom::Begin)
+    [[nodiscard]] OffsetType tell() const noexcept { return position_; }
+    [[nodiscard]] std::error_code seek(OffsetType offset, SeekFrom from = SeekFrom::Begin) noexcept
     {
-        switch (from) {
-        case SeekFrom::Begin:
-            if (offset > len_ || offset < 0)
-                throw StreamIoError("Memory cursor seek out of range");
-            cursor_ = begin_ + offset;
-            break;
-        case SeekFrom::Current: {
-            const auto pos = cursor_ - begin_ + offset;
-            if (pos > len_ || pos < 0)
-                throw StreamIoError("Memory cursor seek out of range");
-            cursor_ += offset;
-            break;
+        if (!is_open()) {
+            return std::make_error_code(std::errc::bad_file_descriptor);
         }
-        case SeekFrom::End:
-            if (offset < -len_ || offset > 0)
-                throw StreamIoError("Memory cursor seek out of range");
-            cursor_ = begin_ + len_ + offset;
-            break;
+
+        OffsetType base;
+        switch (from) {
+        case SeekFrom::Begin:   base = 0; break;
+        case SeekFrom::Current: base = position_; break;
+        case SeekFrom::End:     base = len_; break;
+        default: return std::make_error_code(std::errc::invalid_argument);
+        }
+        if (offset < -base || offset > len_ - base) {
+            return std::make_error_code(std::errc::result_out_of_range);
+        }
+        position_ = static_cast<std::ptrdiff_t>(base + offset);
+        return {};
+    }
+
+    void seek(Ex, OffsetType offset, SeekFrom from = SeekFrom::Begin)
+    {
+        if (seek(offset, from)) {
+            throw StreamIoError("Memory cursor seek failed");
         }
     }
 
-    void read(void* buf, std::size_t n)
+    // Memory transfers are exact. A range error leaves the position unchanged.
+    [[nodiscard]] TransferResult read(void* buf, std::size_t n) noexcept
     {
-        if (static_cast<std::ptrdiff_t>(n) > len_ - (cursor_ - begin_))
-            throw StreamIoError("Memory cursor read overflow");
-        std::memcpy(buf, cursor_, n);
-        cursor_ += n;
+        if (const auto error = check_transfer(buf, n)) {
+            return {0, error};
+        }
+        if (n != 0) {
+            std::memmove(buf, begin_ + position_, n);
+            position_ += static_cast<std::ptrdiff_t>(n);
+        }
+        return {n, {}};
     }
+
+    void read(Ex, void* buf, std::size_t n)
+    {
+        if (read(buf, n).error) {
+            throw StreamIoError("Memory cursor read failed");
+        }
+    }
+
+    [[nodiscard]] TransferResult read_exact(void* buf, std::size_t n) noexcept { return read(buf, n); }
+    void read_exact(Ex, void* buf, std::size_t n) { read(ex, buf, n); }
 
 protected:
+    std::error_code check_transfer(const void* buf, std::size_t n) const noexcept
+    {
+        if (!is_open()) {
+            return std::make_error_code(std::errc::bad_file_descriptor);
+        }
+        if (n != 0 && !buf) {
+            return std::make_error_code(std::errc::invalid_argument);
+        }
+        if (n > static_cast<std::size_t>(len_ - position_)) {
+            return std::make_error_code(std::errc::result_out_of_range);
+        }
+        return {};
+    }
+
     Pointer begin_ = nullptr;
     std::ptrdiff_t len_ = 0;
-    Pointer cursor_ = nullptr;
+    std::ptrdiff_t position_ = 0;
 };
 
 } // namespace detail
@@ -91,13 +121,27 @@ template<>
 class Cursor<true> : public detail::CursorCommon<true>, public RWStreamTag, public RWStreamMixin {
 public:
     Cursor(void* buf, std::ptrdiff_t len) noexcept : detail::CursorCommon<true>(static_cast<Pointer>(buf), len) {}
-    void write(const void* buf, std::size_t n)
+    [[nodiscard]] TransferResult write(const void* buf, std::size_t n) noexcept
     {
-        if (static_cast<std::ptrdiff_t>(n) > len_ - (cursor_ - begin_))
-            throw StreamIoError("Memory cursor write overflow");
-        std::memcpy(cursor_, buf, n);
-        cursor_ += n;
+        if (const auto error = check_transfer(buf, n)) {
+            return {0, error};
+        }
+        if (n != 0) {
+            std::memmove(begin_ + position_, buf, n);
+            position_ += static_cast<std::ptrdiff_t>(n);
+        }
+        return {n, {}};
     }
+
+    void write(Ex, const void* buf, std::size_t n)
+    {
+        if (write(buf, n).error) {
+            throw StreamIoError("Memory cursor write failed");
+        }
+    }
+
+    [[nodiscard]] TransferResult write_exact(const void* buf, std::size_t n) noexcept { return write(buf, n); }
+    void write_exact(Ex, const void* buf, std::size_t n) { write(ex, buf, n); }
 };
 
 // CTAD guides

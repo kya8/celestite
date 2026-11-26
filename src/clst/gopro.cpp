@@ -280,8 +280,8 @@ bool detect_gopro(mp4::Mp4Stream& file, CameraInfo& info, bool metadata_only, co
     CLST_LOG_INFO("Probing GoPro...");
     types::VecBytes data;
     try {
-        file.seek_ex(0);
-        const auto moov = file.seek_to_atom_data("moov"_fc, file.get_length_ex());
+        file.seek(ex, 0);
+        const auto moov = file.seek_to_atom_data("moov"_fc, file.get_length(ex));
         const auto udta = file.seek_to_atom_data("udta"_fc, moov);
         const auto atom = file.seek_to_atom_data("GPMF"_fc, udta);
         if (atom.data_size() != 0) {

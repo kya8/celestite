@@ -37,18 +37,18 @@ bool
 extract_video_info(Mp4Stream& file, VideoInfo& out, types::VecI32* video_track_idx) noexcept try
 {
     CLST_LOG_INFO("Parsing MP4 video info...");
-    file.seek_ex(0);
-    const auto mvhd = seek_atom_recursive(file, {"moov"_fc, "mvhd"_fc}, file.get_length_ex());
+    file.seek(ex, 0);
+    const auto mvhd = seek_atom_recursive(file, {"moov"_fc, "mvhd"_fc}, file.get_length(ex));
     if (!mvhd) {
         return false;
     }
     const auto mvhd_timescale = [&] {
         std::uint8_t ver; std::uint32_t _flag;
-        file.read_num(ver);
-        file.read_num<Endian::BE, std::uint32_t, 3>(_flag);
-        file.seek_ex(ver==1? 8+8 : 4+4, SeekFrom::Current);
+        file.read_num(ex, ver);
+        file.read_num<Endian::BE, std::uint32_t, 3>(ex, _flag);
+        file.seek(ex, ver==1? 8+8 : 4+4, SeekFrom::Current);
         std::uint32_t timescale;
-        file.read_num(timescale);
+        file.read_num(ex, timescale);
         return timescale;
     }();
 

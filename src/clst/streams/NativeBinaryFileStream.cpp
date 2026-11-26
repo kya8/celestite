@@ -779,18 +779,25 @@ NativeBinaryFileStream::NativeBinaryFileStream() noexcept
     ::new (static_cast<void*>(storage_)) Impl;
 }
 
-NativeBinaryFileStream::NativeBinaryFileStream(const char* filename, FileStreamMode mode)
-    : NativeBinaryFileStream(filename, mode, FileAccessPattern::Normal)
+NativeBinaryFileStream::NativeBinaryFileStream(const char* filename, FileStreamMode mode, FileAccessPattern pattern) noexcept
+    : NativeBinaryFileStream()
 {
+    (void)open(filename, mode, pattern);
 }
 
-NativeBinaryFileStream::NativeBinaryFileStream(const char* filename, FileStreamMode mode, FileAccessPattern pattern)
+NativeBinaryFileStream::NativeBinaryFileStream(Ex, const char* filename, FileStreamMode mode, FileAccessPattern pattern)
     : NativeBinaryFileStream()
 {
     open(ex, filename, mode, pattern);
 }
 
-NativeBinaryFileStream::NativeBinaryFileStream(AdoptHandleTag, NativeHandle handle, FileStreamMode mode)
+NativeBinaryFileStream::NativeBinaryFileStream(AdoptHandleTag, NativeHandle handle, FileStreamMode mode) noexcept
+    : NativeBinaryFileStream()
+{
+    (void)adopt(handle, mode);
+}
+
+NativeBinaryFileStream::NativeBinaryFileStream(Ex, AdoptHandleTag, NativeHandle handle, FileStreamMode mode)
     : NativeBinaryFileStream()
 {
     adopt(ex, handle, mode);
@@ -864,12 +871,12 @@ std::error_code NativeBinaryFileStream::open(const char* filename, FileStreamMod
 
 void NativeBinaryFileStream::open(Ex, const char* filename, FileStreamMode mode)
 {
-    detail::throw_file_error(open(filename, mode), "Open file");
+    detail::throw_stream_error(open(filename, mode), "Open file");
 }
 
 void NativeBinaryFileStream::open(Ex, const char* filename, FileStreamMode mode, FileAccessPattern pattern)
 {
-    detail::throw_file_error(open(filename, mode, pattern), "Open file");
+    detail::throw_stream_error(open(filename, mode, pattern), "Open file");
 }
 
 std::error_code NativeBinaryFileStream::adopt(NativeHandle handle, FileStreamMode mode) noexcept
@@ -889,7 +896,7 @@ std::error_code NativeBinaryFileStream::adopt(NativeHandle handle, FileStreamMod
 
 void NativeBinaryFileStream::adopt(Ex, NativeHandle handle, FileStreamMode mode)
 {
-    detail::throw_file_error(adopt(handle, mode), "Adopt file handle");
+    detail::throw_stream_error(adopt(handle, mode), "Adopt file handle");
 }
 
 std::error_code NativeBinaryFileStream::close() noexcept
@@ -904,7 +911,7 @@ std::error_code NativeBinaryFileStream::close() noexcept
 
 void NativeBinaryFileStream::close(Ex)
 {
-    detail::throw_file_error(close(), "Close file");
+    detail::throw_stream_error(close(), "Close file");
 }
 
 bool NativeBinaryFileStream::is_open() const noexcept
@@ -912,14 +919,20 @@ bool NativeBinaryFileStream::is_open() const noexcept
     return get_handle() != closed_handle;
 }
 
-NativeBinaryFileStream::NativeHandle NativeBinaryFileStream::release()
+std::expected<NativeHandle, std::error_code> NativeBinaryFileStream::release() noexcept
 {
     if (!is_open())
         return closed_handle;
 
     auto& state = impl();
-    detail::throw_file_error(state.synchronize(), "Release file handle");
+    if (const auto error = state.synchronize())
+        return std::unexpected(error);
     return state.detach_handle();
+}
+
+NativeBinaryFileStream::NativeHandle NativeBinaryFileStream::release(Ex)
+{
+    return detail::stream_value(release(), "Release file handle");
 }
 
 NativeBinaryFileStream::NativeHandle NativeBinaryFileStream::get_handle() const noexcept
@@ -975,12 +988,19 @@ TransferResult NativeBinaryFileStream::read(void* buffer, std::size_t size) noex
     return state.read(buffer, size, size >= state.buffer_capacity);
 }
 
-std::size_t NativeBinaryFileStream::read(Ex, void* buffer, std::size_t size)
+TransferResult NativeBinaryFileStream::read_exact(void* buffer, std::size_t size) noexcept
 {
     auto& state = impl();
-    return detail::read_file_exact(buffer, size, [&state, direct = size >= state.buffer_capacity](void* data, std::size_t n) {
+    return detail::read_file_exact(buffer, size, [&state, direct = size >= state.buffer_capacity](void* data, std::size_t n) noexcept {
         return state.read(data, n, direct);
     });
+}
+
+std::size_t NativeBinaryFileStream::read(Ex, void* buffer, std::size_t size)
+{
+    const auto result = read_exact(buffer, size);
+    detail::throw_stream_error(result.error, "Reading file");
+    return result.bytes_transferred;
 }
 
 TransferResult NativeBinaryFileStream::Impl::write(const void* buffer, std::size_t size, bool direct) noexcept
@@ -1029,12 +1049,19 @@ TransferResult NativeBinaryFileStream::write(const void* buffer, std::size_t siz
     return state.write(buffer, size, size >= state.buffer_capacity);
 }
 
-std::size_t NativeBinaryFileStream::write(Ex, const void* buffer, std::size_t size)
+TransferResult NativeBinaryFileStream::write_exact(const void* buffer, std::size_t size) noexcept
 {
     auto& state = impl();
-    return detail::write_file_exact(buffer, size, [&state, direct = size >= state.buffer_capacity](const void* data, std::size_t n) {
+    return detail::write_file_exact(buffer, size, [&state, direct = size >= state.buffer_capacity](const void* data, std::size_t n) noexcept {
         return state.write(data, n, direct);
     });
+}
+
+std::size_t NativeBinaryFileStream::write(Ex, const void* buffer, std::size_t size)
+{
+    const auto result = write_exact(buffer, size);
+    detail::throw_stream_error(result.error, "Writing file");
+    return result.bytes_transferred;
 }
 
 TransferResult NativeBinaryFileStream::read_at(OffsetType offset, void* buffer, std::size_t size) noexcept
@@ -1056,11 +1083,13 @@ TransferResult NativeBinaryFileStream::read_at(OffsetType offset, void* buffer, 
 
 std::size_t NativeBinaryFileStream::read_at(Ex, OffsetType offset, void* buffer, std::size_t size)
 {
-    return detail::read_file_exact(buffer, size, [this, &offset](void* data, std::size_t n) {
+    const auto result = detail::read_file_exact(buffer, size, [this, &offset](void* data, std::size_t n) noexcept {
         const auto result = read_at(offset, data, n);
         offset += static_cast<OffsetType>(result.bytes_transferred);
         return result;
     });
+    detail::throw_stream_error(result.error, "Reading file");
+    return result.bytes_transferred;
 }
 
 TransferResult NativeBinaryFileStream::write_at(OffsetType offset, const void* buffer, std::size_t size) noexcept
@@ -1083,43 +1112,48 @@ TransferResult NativeBinaryFileStream::write_at(OffsetType offset, const void* b
 
 std::size_t NativeBinaryFileStream::write_at(Ex, OffsetType offset, const void* buffer, std::size_t size)
 {
-    return detail::write_file_exact(buffer, size, [this, &offset](const void* data, std::size_t n) {
+    const auto result = detail::write_file_exact(buffer, size, [this, &offset](const void* data, std::size_t n) noexcept {
         const auto result = write_at(offset, data, n);
         offset += static_cast<OffsetType>(result.bytes_transferred);
         return result;
     });
+    detail::throw_stream_error(result.error, "Writing file");
+    return result.bytes_transferred;
 }
 
-std::size_t NativeBinaryFileStream::copy_from_native(NativeBinaryFileStream& source, std::size_t size)
+TransferResult NativeBinaryFileStream::copy_from_native(NativeBinaryFileStream& source, std::size_t size) noexcept
 {
     if (size == 0)
-        return 0;
+        return {};
     if (this == &source)
-        throw std::system_error(std::make_error_code(std::errc::invalid_argument), "Copy file range within one stream");
+        return {0, std::make_error_code(std::errc::invalid_argument)};
 
 #if defined(__linux__)
     auto& input = source.impl();
     auto& output = impl();
     if (!input.readable() || !output.writable() || output.append() || !input.regular_file || !output.regular_file ||
         !native_range_copy_available || !native_range_copy_same_filesystem(input.handle, output.handle))
-        return 0;
+        return {};
 
-    detail::throw_file_error(input.synchronize(), "Synchronize copy source");
-    detail::throw_file_error(output.synchronize(), "Synchronize copy destination");
+    if (const auto error = input.synchronize())
+        return {0, error};
+    if (const auto error = output.synchronize())
+        return {0, error};
 
     std::size_t copied = 0;
     while (copied < size) {
         const auto result = native_copy_range(input.handle, output.handle, size - copied);
         if (!result)
             break;
-        detail::throw_file_error(result->error, "Copy file range");
+        if (result->error)
+            return {copied, result->error};
         if (result->bytes_transferred == 0)
-            throw std::system_error(std::make_error_code(std::io_errc::stream), "Copy file range before EOF");
+            return {copied, std::make_error_code(std::io_errc::stream)};
         copied += result->bytes_transferred;
     }
-    return copied;
+    return {copied, {}};
 #else
-    return 0;
+    return {};
 #endif
 }
 
@@ -1132,7 +1166,7 @@ std::error_code NativeBinaryFileStream::flush() noexcept
 
 void NativeBinaryFileStream::flush(Ex)
 {
-    detail::throw_file_error(flush(), "Flush file stream");
+    detail::throw_stream_error(flush(), "Flush file stream");
 }
 
 std::size_t NativeBinaryFileStream::get_buffer_size() const noexcept
@@ -1158,7 +1192,7 @@ std::error_code NativeBinaryFileStream::set_buffer_size(std::size_t size) noexce
 
 void NativeBinaryFileStream::set_buffer_size(Ex, std::size_t size)
 {
-    detail::throw_file_error(set_buffer_size(size), "Set file stream buffer size");
+    detail::throw_stream_error(set_buffer_size(size), "Set file stream buffer size");
 }
 
 std::error_code NativeBinaryFileStream::sync(FileSyncMode mode) noexcept
@@ -1175,7 +1209,7 @@ std::error_code NativeBinaryFileStream::sync(FileSyncMode mode) noexcept
 
 void NativeBinaryFileStream::sync(Ex, FileSyncMode mode)
 {
-    detail::throw_file_error(sync(mode), "Sync file stream");
+    detail::throw_stream_error(sync(mode), "Sync file stream");
 }
 
 std::error_code NativeBinaryFileStream::seek(OffsetType offset, SeekFrom from) noexcept
@@ -1219,7 +1253,7 @@ std::error_code NativeBinaryFileStream::seek(OffsetType offset, SeekFrom from) n
 
 void NativeBinaryFileStream::seek(Ex, OffsetType offset, SeekFrom from)
 {
-    detail::throw_file_error(seek(offset, from), "Seek file stream");
+    detail::throw_stream_error(seek(offset, from), "Seek file stream");
 }
 
 std::expected<OffsetType, std::error_code> NativeBinaryFileStream::tell() const noexcept
@@ -1231,10 +1265,7 @@ std::expected<OffsetType, std::error_code> NativeBinaryFileStream::tell() const 
 
 OffsetType NativeBinaryFileStream::tell(Ex) const
 {
-    const auto result = tell();
-    if (!result)
-        throw std::system_error(result.error(), "Get file stream position");
-    return *result;
+    return detail::stream_value(tell(), "Get file stream position");
 }
 
 std::expected<OffsetType, std::error_code> NativeBinaryFileStream::get_length() const noexcept
@@ -1246,10 +1277,7 @@ std::expected<OffsetType, std::error_code> NativeBinaryFileStream::get_length() 
 
 OffsetType NativeBinaryFileStream::get_length(Ex) const
 {
-    const auto result = get_length();
-    if (!result)
-        throw std::system_error(result.error(), "Get file length");
-    return *result;
+    return detail::stream_value(get_length(), "Get file length");
 }
 
 std::error_code NativeBinaryFileStream::resize(OffsetType size) noexcept
@@ -1266,7 +1294,7 @@ std::error_code NativeBinaryFileStream::resize(OffsetType size) noexcept
 
 void NativeBinaryFileStream::resize(Ex, OffsetType size)
 {
-    detail::throw_file_error(resize(size), "Resize file");
+    detail::throw_stream_error(resize(size), "Resize file");
 }
 
 std::error_code NativeBinaryFileStream::reserve(OffsetType size) noexcept
@@ -1283,7 +1311,7 @@ std::error_code NativeBinaryFileStream::reserve(OffsetType size) noexcept
 
 void NativeBinaryFileStream::reserve(Ex, OffsetType size)
 {
-    detail::throw_file_error(reserve(size), "Reserve file storage");
+    detail::throw_stream_error(reserve(size), "Reserve file storage");
 }
 
 std::error_code NativeBinaryFileStream::prefetch(OffsetType offset, OffsetType size) noexcept
@@ -1302,7 +1330,7 @@ std::error_code NativeBinaryFileStream::prefetch(OffsetType offset, OffsetType s
 
 void NativeBinaryFileStream::prefetch(Ex, OffsetType offset, OffsetType size)
 {
-    detail::throw_file_error(prefetch(offset, size), "Prefetch file range");
+    detail::throw_stream_error(prefetch(offset, size), "Prefetch file range");
 }
 
 } // namespace clst

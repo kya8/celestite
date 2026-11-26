@@ -74,18 +74,18 @@ bool
 detect_insta360(Mp4Stream& file, CameraInfo& info, bool metadata_only) noexcept try
 {
     CLST_LOG_INFO("Probing Insta360...");
-    file.seek_ex(-magic_len, SeekFrom::End);
+    file.seek(ex, -magic_len, SeekFrom::End);
     unsigned char buf_magic[magic_len] {0};
-    file.read_ex(buf_magic, magic_len);
+    file.read(ex, buf_magic, magic_len);
     if (std::memcmp(buf_magic, magic, magic_len) != 0) {
         CLST_LOG_DEBUG("Insta360 detection failed: magic mismatch.");
         return false;
     }
     CLST_LOG_DEBUG("Insta360 insv magic matched.");
 
-    file.seek_ex(-magic_len-4-4, SeekFrom::End);
+    file.seek(ex, -magic_len-4-4, SeekFrom::End);
     std::uint32_t extra_size, _version;
-    file.read_nums<Endian::LE>(extra_size, _version);
+    file.read_nums<Endian::LE>(ex, extra_size, _version);
     CLST_LOG_DEBUG("insv extra data size: {}, version: {}", extra_size, _version);
     info.vendor = CameraVendor::Insta360;
 
@@ -98,18 +98,18 @@ detect_insta360(Mp4Stream& file, CameraInfo& info, bool metadata_only) noexcept 
     std::map<RecordType, std::pair<std::uint32_t, std::uint32_t>> offsets; // (id, (offset, size)). offset is begin of data block
 
     std::int64_t offset = magic_len + 32+4+4 + 1+1+4;
-    file.seek_ex(-offset + 1, SeekFrom::End);
+    file.seek(ex, -offset + 1, SeekFrom::End);
     std::uint8_t first_id;
-    file.read_num<Endian::LE>(first_id);
+    file.read_num<Endian::LE>(ex, first_id);
     if (first_id == RecordType::Offsets) { // the `offsets` block specifies offsets for subsequent fields
         std::uint32_t size;
-        file.read_num<Endian::LE>(size);
-        file.seek_ex(-offset - size, SeekFrom::End);
+        file.read_num<Endian::LE>(ex, size);
+        file.seek(ex, -offset - size, SeekFrom::End);
         std::uint32_t read = 0;
         while ((read += 1+1+4+4) <= size) {
             std::uint8_t id, _format;
             std::uint32_t size, offset;
-            file.read_nums<Endian::LE>(id, _format, size, offset);
+            file.read_nums<Endian::LE>(ex, id, _format, size, offset);
             if (id > 0) offsets[(RecordType)id] = {offset, size};
         }
 
@@ -128,26 +128,26 @@ detect_insta360(Mp4Stream& file, CameraInfo& info, bool metadata_only) noexcept 
 
         if (offsets.empty()) { // No offsets
             if (offset >= (std::int64_t)extra_size) break;
-            file.seek_ex(-offset, SeekFrom::End);
-            file.read_nums<Endian::LE>(format, id, size);
-            file.seek_ex(-offset - size, SeekFrom::End);
+            file.seek(ex, -offset, SeekFrom::End);
+            file.read_nums<Endian::LE>(ex, format, id, size);
+            file.seek(ex, -offset - size, SeekFrom::End);
             offset += (size + 1+1+4); // next block header start
         }
         else {
             if (iter_offsets == end_offsets) break;
             const auto data_start = -(std::int64_t)extra_size + iter_offsets->second.first;
-            file.seek_ex(data_start + iter_offsets->second.second, SeekFrom::End); // seek to header start
-            file.read_nums<Endian::LE>(format, id, size);
+            file.seek(ex, data_start + iter_offsets->second.second, SeekFrom::End); // seek to header start
+            file.read_nums<Endian::LE>(ex, format, id, size);
             const bool skip = id != iter_offsets->first || size != iter_offsets->second.second;
             ++iter_offsets;
             if (skip) continue;
-            file.seek_ex(data_start, SeekFrom::End);
+            file.seek(ex, data_start, SeekFrom::End);
         }
 
         if (id == RecordType::Metadata && format == RecordFormat::Protobuf) { // Normally, this should be the first record.
             CLST_LOG_DEBUG("Found insta360 metadata record. size={}", size);
             std::vector<unsigned char> buf(size);
-            file.read_ex(buf.data(), buf.size());
+            file.read(ex, buf.data(), buf.size());
             Insta360Metadata metadata;
             if (metadata.ParseFromArray(buf.data(), static_cast<int>(buf.size()))) {
                 auto& map = info.extras[GroupId::Metadata];
@@ -233,12 +233,12 @@ detect_insta360(Mp4Stream& file, CameraInfo& info, bool metadata_only) noexcept 
             const auto sample_count = size / sample_size;
             for (auto i = 0u; i < sample_count; ++i) {
                 std::uint64_t timestamp;
-                file.read_num<Endian::LE>(timestamp);
+                file.read_num<Endian::LE>(ex, timestamp);
                 const auto td = timestamp * t_scale - first_frame_t - gyro_ts;
                 if (is_raw_gyro) { // 8+6*2
                     std::uint16_t ax, ay, az,
                              gx, gy, gz;
-                    file.read_nums<Endian::LE>(ax, ay, az, gx, gy, gz);
+                    file.read_nums<Endian::LE>(ex, ax, ay, az, gx, gy, gz);
                     const auto axd = acc_scale*(ax - 32768.0), ayd = acc_scale*(ay - 32768.0), azd = acc_scale*(az - 32768.0);
                     const auto gxd = gyro_scale*(gx - 32768.0), gyd = gyro_scale*(gy - 32768.0), gzd = gyro_scale*(gz - 32768.0);
                     acc_data.emplace_back(td, axd, ayd, azd);
@@ -247,7 +247,7 @@ detect_insta360(Mp4Stream& file, CameraInfo& info, bool metadata_only) noexcept 
                 else { // !is_raw_gyro, 8+6*8
                     double ax, ay, az,
                            gx, gy, gz;
-                    file.read_nums<Endian::LE>(ax, ay, az, gx, gy, gz);
+                    file.read_nums<Endian::LE>(ex, ax, ay, az, gx, gy, gz);
                     acc_data.emplace_back(td, ax, ay, az);
                     gyro_data.emplace_back(td, gx, gy, gz);
                 }
@@ -262,7 +262,7 @@ detect_insta360(Mp4Stream& file, CameraInfo& info, bool metadata_only) noexcept 
             for (auto i = 0u; i < sample_count; ++i) {
                 std::uint64_t timestamp;
                 double   shutter;
-                file.read_nums<Endian::LE>(timestamp, shutter);
+                file.read_nums<Endian::LE>(ex, timestamp, shutter);
                 const auto td = timestamp * t_scale - first_frame_t;
                 exposure_data.emplace_back(td, shutter);
             }
@@ -274,7 +274,7 @@ detect_insta360(Mp4Stream& file, CameraInfo& info, bool metadata_only) noexcept 
             types::VecDouble ts;
             for (auto i = 0u; i < count; ++i) {
                 std::uint64_t timestamp;
-                file.read_num<Endian::LE>(timestamp);
+                file.read_num<Endian::LE>(ex, timestamp);
                 ts.push_back(timestamp * t_scale - first_frame_t);
             }
             info.extras[GroupId::SensorData][KeyId::TimelapseTimestamp] = std::move(ts);
@@ -290,7 +290,7 @@ detect_insta360(Mp4Stream& file, CameraInfo& info, bool metadata_only) noexcept 
                 double speed;    // m/s
                 double track;    // speed direction
                 double altitude; // Geoid undulation
-                file.read_nums<Endian::LE>(t1, t2, fix, lat, lat_direction, lon, lon_direction, speed, track, altitude);
+                file.read_nums<Endian::LE>(ex, t1, t2, fix, lat, lat_direction, lon, lon_direction, speed, track, altitude);
 
                 if (lat_direction == 'S') lat = std::abs(lat) * -1;
                 if (lon_direction == 'W') lon = std::abs(lon) * -1;

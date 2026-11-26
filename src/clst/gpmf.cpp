@@ -127,19 +127,20 @@ std::optional<double> RecordView::number(std::size_t index) const noexcept
     }
 
     Cursor<false> cursor(value.data() + index * width, static_cast<std::ptrdiff_t>(width));
+    // The width check above ensures each numeric read fits in the cursor.
     switch (type) {
-    case 'b': return cursor.read_num<Endian::BE, std::int8_t>();
-    case 'B': return cursor.read_num<Endian::BE, std::uint8_t>();
-    case 's': return cursor.read_num<Endian::BE, std::int16_t>();
-    case 'S': return cursor.read_num<Endian::BE, std::uint16_t>();
-    case 'l': return cursor.read_num<Endian::BE, std::int32_t>();
-    case 'L': return cursor.read_num<Endian::BE, std::uint32_t>();
-    case 'j': return static_cast<double>(cursor.read_num<Endian::BE, std::int64_t>());
-    case 'J': return static_cast<double>(cursor.read_num<Endian::BE, std::uint64_t>());
-    case 'f': return std::bit_cast<float>(cursor.read_num<Endian::BE, std::uint32_t>());
-    case 'd': return std::bit_cast<double>(cursor.read_num<Endian::BE, std::uint64_t>());
-    case 'q': return cursor.read_num<Endian::BE, std::int32_t>() / 0x1p16;
-    case 'Q': return static_cast<double>(cursor.read_num<Endian::BE, std::int64_t>()) / 0x1p32;
+    case 'b': return *cursor.read_num<Endian::BE, std::int8_t>();
+    case 'B': return *cursor.read_num<Endian::BE, std::uint8_t>();
+    case 's': return *cursor.read_num<Endian::BE, std::int16_t>();
+    case 'S': return *cursor.read_num<Endian::BE, std::uint16_t>();
+    case 'l': return *cursor.read_num<Endian::BE, std::int32_t>();
+    case 'L': return *cursor.read_num<Endian::BE, std::uint32_t>();
+    case 'j': return static_cast<double>(*cursor.read_num<Endian::BE, std::int64_t>());
+    case 'J': return static_cast<double>(*cursor.read_num<Endian::BE, std::uint64_t>());
+    case 'f': return std::bit_cast<float>(*cursor.read_num<Endian::BE, std::uint32_t>());
+    case 'd': return std::bit_cast<double>(*cursor.read_num<Endian::BE, std::uint64_t>());
+    case 'q': return *cursor.read_num<Endian::BE, std::int32_t>() / 0x1p16;
+    case 'Q': return static_cast<double>(*cursor.read_num<Endian::BE, std::int64_t>()) / 0x1p32;
     default: return std::nullopt;
     }
 }
@@ -164,8 +165,11 @@ std::expected<std::optional<RecordView>, ParseError> Reader::next() noexcept
     }
 
     Cursor<false> cursor(remaining_.data(), header_size);
-    const auto [key, type, sample_size, repeat] =
-        cursor.read_nums<Endian::BE, FourCC, unsigned char, std::uint8_t, std::uint16_t>();
+    const auto header = cursor.read_nums<Endian::BE, FourCC, unsigned char, std::uint8_t, std::uint16_t>();
+    if (!header) {
+        return std::unexpected(ParseError::truncated_header);
+    }
+    const auto [key, type, sample_size, repeat] = *header;
     if (sample_size == 0 && repeat != 0) {
         return std::unexpected(ParseError::invalid_sample_size);
     }

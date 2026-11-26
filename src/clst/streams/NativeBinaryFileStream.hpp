@@ -27,9 +27,14 @@ public:
 #endif
 
     NativeBinaryFileStream() noexcept;
-    NativeBinaryFileStream(const char* filename, FileStreamMode mode = FileStreamMode::Read);
-    NativeBinaryFileStream(const char* filename, FileStreamMode mode, FileAccessPattern pattern);
-    NativeBinaryFileStream(AdoptHandleTag, NativeHandle handle, FileStreamMode mode);
+    // On failure untagged constructors leave the stream closed. Open and adopt report error codes.
+    NativeBinaryFileStream(const char* filename, FileStreamMode mode = FileStreamMode::Read,
+                           FileAccessPattern pattern = FileAccessPattern::Normal) noexcept;
+    NativeBinaryFileStream(Ex, const char* filename, FileStreamMode mode = FileStreamMode::Read,
+                           FileAccessPattern pattern = FileAccessPattern::Normal);
+    // If adoption fails, the caller retains ownership of the handle.
+    NativeBinaryFileStream(AdoptHandleTag, NativeHandle handle, FileStreamMode mode) noexcept;
+    NativeBinaryFileStream(Ex, AdoptHandleTag, NativeHandle handle, FileStreamMode mode);
     ~NativeBinaryFileStream() noexcept;
 
     NativeBinaryFileStream(const NativeBinaryFileStream&) = delete;
@@ -56,9 +61,10 @@ public:
     [[nodiscard]] bool is_open() const noexcept;
 
     // Synchronize the buffer, then give the caller ownership of the handle.
-    // An empty stream returns nullptr on Windows or -1 on UNIX. If synchronization
-    // fails, throw std::system_error and retain ownership.
-    [[nodiscard]] NativeHandle release();
+    // An empty stream returns nullptr on Windows or -1 on UNIX. A synchronization
+    // failure leaves ownership with the stream.
+    [[nodiscard]] std::expected<NativeHandle, std::error_code> release() noexcept;
+    [[nodiscard]] NativeHandle release(Ex);
 
     // The stream owns this handle. Flush before using it for native I/O.
     [[nodiscard]] NativeHandle get_handle() const noexcept;
@@ -67,12 +73,15 @@ public:
     // Zero bytes without an error on a nonempty read denotes EOF.
     [[nodiscard]] TransferResult read(void* buffer, std::size_t size) noexcept;
     std::size_t read(Ex, void* buffer, std::size_t size);
-    void read_exact(void* buffer, std::size_t size) { read(ex, buffer, size); }
+    // Exact transfers retry interrupted calls and report progress on failure.
+    [[nodiscard]] TransferResult read_exact(void* buffer, std::size_t size) noexcept;
+    void read_exact(Ex, void* buffer, std::size_t size) { read(ex, buffer, size); }
 
     // A buffered write reports bytes accepted by the stream. A later flush can fail.
     [[nodiscard]] TransferResult write(const void* buffer, std::size_t size) noexcept;
     std::size_t write(Ex, const void* buffer, std::size_t size);
-    void write_exact(const void* buffer, std::size_t size) { write(ex, buffer, size); }
+    [[nodiscard]] TransferResult write_exact(const void* buffer, std::size_t size) noexcept;
+    void write_exact(Ex, const void* buffer, std::size_t size) { write(ex, buffer, size); }
 
     // Positioned transfers preserve the stream cursor on success.
     // Positioned writes require a non-append mode.
@@ -120,7 +129,7 @@ private:
     friend class WriteStreamMixin;
     struct Impl;
 
-    std::size_t copy_from_native(NativeBinaryFileStream& source, std::size_t size);
+    TransferResult copy_from_native(NativeBinaryFileStream& source, std::size_t size) noexcept;
     Impl& impl() noexcept;
     const Impl& impl() const noexcept;
 

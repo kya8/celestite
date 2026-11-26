@@ -2,16 +2,20 @@
 #define CLST_STREAMS_BINARY_STREAM_HPP
 
 #include "clst/tags.hpp"
-#include <cstdint>
-#include <cstddef>
-#include <type_traits>
-#include <stdexcept>
 #include <algorithm>
-#include <memory>
-#include <tuple>
+#include <array>
 #include <bit>
-#include <utility>
 #include <concepts>
+#include <cstddef>
+#include <cstdint>
+#include <expected>
+#include <memory>
+#include <new>
+#include <stdexcept>
+#include <system_error>
+#include <tuple>
+#include <type_traits>
+#include <utility>
 
 namespace clst {
 
@@ -40,6 +44,12 @@ struct StreamIoError : StreamError {
     using StreamError::StreamError;
 };
 
+// An operation can make progress and encounter an error in the same call.
+struct TransferResult {
+    std::size_t bytes_transferred = 0;
+    std::error_code error;
+};
+
 // Tags for stream concepts.
 // Implementors should inherit from these tags.
 struct ReadStreamTag {};
@@ -48,293 +58,345 @@ struct RWStreamTag : ReadStreamTag, WriteStreamTag {};
 
 namespace detail {
 
-template<typename T>
-concept HasTaggedRead = requires(T& stream, void* buf, std::size_t n) {
-    { stream.read(ex, buf, n) } -> std::same_as<std::size_t>;
-};
-
-template<typename T>
-concept HasTaggedWrite = requires(T& stream, const void* buf, std::size_t n) {
-    { stream.write(ex, buf, n) } -> std::same_as<std::size_t>;
-};
-
-template<typename T>
-concept HasTaggedSeek = requires(T& stream, OffsetType offset, SeekFrom from) {
-    { stream.seek(ex, offset, from) } -> std::same_as<void>;
-};
-
-template<typename T>
-concept HasTaggedTell = requires(T& stream) {
-    { stream.tell(ex) } -> std::same_as<OffsetType>;
-};
-
-template<typename T>
-concept HasReadEx = requires(T& stream, void* buf, std::size_t n) {
-    { stream.read_ex(buf, n) } -> std::same_as<std::size_t>;
-};
-
-template<typename T>
-concept HasWriteEx = requires(T& stream, const void* buf, std::size_t n) {
-    { stream.write_ex(buf, n) } -> std::same_as<std::size_t>;
-};
-
-template<typename T>
-concept HasSeekEx = requires(T& stream, OffsetType offset, SeekFrom from) {
-    { stream.seek_ex(offset, from) } -> std::same_as<void>;
-};
-
-template<typename T>
-concept HasTellEx = requires(T& stream) {
-    { stream.tell_ex() } -> std::same_as<OffsetType>;
-};
-
-// File streams expose partial transfers separately. Generic callers need exact I/O.
-template<typename T>
-void read_exact(T& stream, void* buf, std::size_t n)
+inline void throw_stream_error(std::error_code error, const char* operation)
 {
-    if constexpr (HasTaggedRead<T>) {
-        stream.read(ex, buf, n);
-    } else if constexpr (HasReadEx<T>) {
-        stream.read_ex(buf, n);
-    } else {
-        stream.read(buf, n);
+    if (error) {
+        throw std::system_error(error, operation);
     }
 }
 
 template<typename T>
-void write_exact(T& stream, const void* buf, std::size_t n)
+T stream_value(std::expected<T, std::error_code> result, const char* operation)
 {
-    if constexpr (HasTaggedWrite<T>) {
-        stream.write(ex, buf, n);
-    } else if constexpr (HasWriteEx<T>) {
-        stream.write_ex(buf, n);
-    } else {
-        stream.write(buf, n);
+    if (!result) {
+        throw std::system_error(result.error(), operation);
     }
+    return std::move(*result);
 }
 
 template<typename T>
-void seek_exact(T& stream, OffsetType offset, SeekFrom from = SeekFrom::Begin)
-{
-    if constexpr (HasTaggedSeek<T>) {
-        stream.seek(ex, offset, from);
-    } else if constexpr (HasSeekEx<T>) {
-        stream.seek_ex(offset, from);
-    } else {
-        stream.seek(offset, from);
-    }
-}
+concept StreamPosition = std::same_as<T, OffsetType> || std::same_as<T, std::expected<OffsetType, std::error_code>>;
 
 template<typename T>
-OffsetType tell_exact(T& stream)
-{
-    if constexpr (HasTaggedTell<T>) {
-        return stream.tell(ex);
-    } else if constexpr (HasTellEx<T>) {
-        return stream.tell_ex();
-    } else {
-        return stream.tell();
-    }
-}
+concept StreamNumber = std::is_arithmetic_v<T> && std::same_as<T, std::remove_cv_t<T>>;
+
+template<typename T, unsigned Bytes>
+concept StreamNumberWidth = StreamNumber<T> && Bytes <= sizeof(T) && (!std::is_signed_v<T> || Bytes == sizeof(T));
 
 } // namespace detail
 
-// Concept for basic stream operations.
+// The mixins use the stream's non-throwing operations.
 template<typename T>
-concept BasicStream = requires(T& a) {
-    { a.is_open() } -> std::same_as<bool>;
-} && (detail::HasTaggedSeek<T> || detail::HasSeekEx<T> || requires(T& a, OffsetType off, SeekFrom seek) {
-    { a.seek(off, seek) } -> std::same_as<void>;
-}) && (detail::HasTaggedTell<T> || detail::HasTellEx<T> || requires(T& a) {
-    { a.tell() } -> std::same_as<OffsetType>;
-});
+concept BasicStream = requires(T& stream, OffsetType offset, SeekFrom from) {
+    { stream.is_open() } noexcept -> std::same_as<bool>;
+    { stream.seek(offset, from) } noexcept -> std::same_as<std::error_code>;
+    { stream.tell() } noexcept -> detail::StreamPosition;
+};
 
-// Concept for reader stream.
+// Exact transfers report any progress and an error if they cannot complete.
 template<typename T>
 concept ReadStream = BasicStream<T> && std::derived_from<T, ReadStreamTag> &&
-    (detail::HasTaggedRead<T> || detail::HasReadEx<T> || requires(T& a, void* p, std::size_t size) {
-        { a.read(p, size) } -> std::same_as<void>;
-    });
+    requires(T& stream, void* buffer, std::size_t size) {
+        { stream.read_exact(buffer, size) } noexcept -> std::same_as<TransferResult>;
+    };
 
-// Concept for writer stream.
 template<typename T>
 concept WriteStream = BasicStream<T> && std::derived_from<T, WriteStreamTag> &&
-    (detail::HasTaggedWrite<T> || detail::HasWriteEx<T> || requires(T& a, const void* p, std::size_t size) {
-        { a.write(p, size) } -> std::same_as<void>;
-    });
+    requires(T& stream, const void* buffer, std::size_t size) {
+        { stream.write_exact(buffer, size) } noexcept -> std::same_as<TransferResult>;
+    };
 
 // Mixin class for readers
 class ReadStreamMixin {
 public:
-    template <Endian endian=Endian::BE, typename T, unsigned BytesToRead = sizeof(T), ReadStream Self>
-    // signed integer with BytesToRead < sizeof(T) is not supported
-    requires (
-        std::is_arithmetic_v<T> && BytesToRead <= sizeof(T) && !(std::is_signed_v<T> && BytesToRead < sizeof(T))
-        )
-    void read_num(this Self& self, T& dest)
+    template<Endian endian = Endian::BE, typename T, unsigned Bytes = sizeof(T), ReadStream Self>
+    requires detail::StreamNumberWidth<T, Bytes>
+    [[nodiscard]] std::error_code read_num(this Self& self, T& dest) noexcept
     {
-        if constexpr (BytesToRead < sizeof(T)) dest = 0; // zero-out bytes. For unsigned integers only
-        static constexpr unsigned offset = target_endian == Endian::LE ? 0 : sizeof(T) - BytesToRead;
-        const auto p = reinterpret_cast<unsigned char*>(&dest) + offset;
-        detail::read_exact(self, p, BytesToRead);
-        if constexpr (endian != target_endian) std::reverse(p, p + BytesToRead);
-    }
-
-    template <Endian endian=Endian::BE, typename T, unsigned BytesToRead = sizeof(T), ReadStream Self>
-    requires (std::is_arithmetic_v<T> && BytesToRead <= sizeof(T) && !(std::is_signed_v<T> && BytesToRead < sizeof(T)))
-    T read_num(this Self& self)
-    {
-        T out{};
-        static constexpr unsigned offset = endian == Endian::LE ? 0 : sizeof(T) - BytesToRead;
-        const auto p = reinterpret_cast<unsigned char*>(&out) + offset;
-        detail::read_exact(self, p, BytesToRead);
-        if constexpr (endian == target_endian) {
-            return out;
+        // Decode into a temporary so an incomplete read leaves dest unchanged.
+        using Storage = std::conditional_t<std::same_as<T, bool>, unsigned char[sizeof(T)], T>;
+        Storage value{};
+        constexpr unsigned offset = target_endian == Endian::LE ? 0 : sizeof(T) - Bytes;
+        auto* bytes = reinterpret_cast<unsigned char*>(&value) + offset;
+        if (const auto result = self.read_exact(bytes, Bytes); result.error) {
+            return result.error;
+        }
+        if constexpr (std::same_as<T, bool>) {
+            dest = std::any_of(bytes, bytes + Bytes, [](unsigned char byte) { return byte != 0; });
         } else {
-            return std::byteswap(out);
+            if constexpr (endian != target_endian) {
+                std::reverse(bytes, bytes + Bytes);
+            }
+            dest = value;
         }
+        return {};
     }
 
-    // runtime endianness
-    template <typename T, unsigned BytesToRead = sizeof(T), ReadStream Self> // We have to deduce Self here to the actual type, otherwise read_num isn't avaiable by ourself, since it needs to meet ReadStream
-    requires (std::is_arithmetic_v<T> && BytesToRead <= sizeof(T) && !(std::is_signed_v<T> && BytesToRead < sizeof(T)))
-    void read_num(this Self& self, Endian endian, T& dest) {
+    template<Endian endian = Endian::BE, typename T, unsigned Bytes = sizeof(T), ReadStream Self>
+    requires detail::StreamNumberWidth<T, Bytes>
+    void read_num(this Self& self, Ex, T& dest)
+    {
+        detail::throw_stream_error(self.template read_num<endian, T, Bytes>(dest), "Read stream number");
+    }
+
+    template<Endian endian = Endian::BE, typename T, unsigned Bytes = sizeof(T), ReadStream Self>
+    requires detail::StreamNumberWidth<T, Bytes>
+    [[nodiscard]] std::expected<T, std::error_code> read_num(this Self& self) noexcept
+    {
+        T value{};
+        if (const auto error = self.template read_num<endian, T, Bytes>(value)) {
+            return std::unexpected(error);
+        }
+        return value;
+    }
+
+    template<Endian endian = Endian::BE, typename T, unsigned Bytes = sizeof(T), ReadStream Self>
+    requires detail::StreamNumberWidth<T, Bytes>
+    T read_num(this Self& self, Ex)
+    {
+        return detail::stream_value(self.template read_num<endian, T, Bytes>(), "Read stream number");
+    }
+
+    template<typename T, unsigned Bytes = sizeof(T), ReadStream Self>
+    requires detail::StreamNumberWidth<T, Bytes>
+    [[nodiscard]] std::error_code read_num(this Self& self, Endian endian, T& dest) noexcept
+    {
         switch (endian) {
         case Endian::BE:
-            self.template read_num<Endian::BE, T, BytesToRead>(dest);
-            break;
+            return self.template read_num<Endian::BE, T, Bytes>(dest);
         case Endian::LE:
-            self.template read_num<Endian::LE, T, BytesToRead>(dest);
-            break;
-        default:
-            std::unreachable();
+            return self.template read_num<Endian::LE, T, Bytes>(dest);
         }
+        return std::make_error_code(std::errc::invalid_argument);
     }
 
-    template <typename T, unsigned BytesToRead = sizeof(T), ReadStream Self>
-    requires (std::is_arithmetic_v<T> && BytesToRead <= sizeof(T) && !(std::is_signed_v<T> && BytesToRead < sizeof(T)))
-    T read_num(this Self& self, Endian endian) {
+    template<typename T, unsigned Bytes = sizeof(T), ReadStream Self>
+    requires detail::StreamNumberWidth<T, Bytes>
+    void read_num(this Self& self, Ex, Endian endian, T& dest)
+    {
+        detail::throw_stream_error(self.template read_num<T, Bytes>(endian, dest), "Read stream number");
+    }
+
+    template<typename T, unsigned Bytes = sizeof(T), ReadStream Self>
+    requires detail::StreamNumberWidth<T, Bytes>
+    [[nodiscard]] std::expected<T, std::error_code> read_num(this Self& self, Endian endian) noexcept
+    {
+        T value{};
+        if (const auto error = self.template read_num<T, Bytes>(endian, value)) {
+            return std::unexpected(error);
+        }
+        return value;
+    }
+
+    template<typename T, unsigned Bytes = sizeof(T), ReadStream Self>
+    requires detail::StreamNumberWidth<T, Bytes>
+    T read_num(this Self& self, Ex, Endian endian)
+    {
+        return detail::stream_value(self.template read_num<T, Bytes>(endian), "Read stream number");
+    }
+
+    // On failure, only the numbers read before the failing transfer are assigned.
+    template<Endian endian = Endian::BE, detail::StreamNumber... Ts, ReadStream Self>
+    [[nodiscard]] std::error_code read_nums(this Self& self, Ts&... args) noexcept
+    {
+        std::error_code error;
+        (void)((!(error = self.template read_num<endian>(args))) && ...);
+        return error;
+    }
+
+    template<Endian endian = Endian::BE, detail::StreamNumber... Ts, ReadStream Self>
+    void read_nums(this Self& self, Ex, Ts&... args)
+    {
+        detail::throw_stream_error(self.template read_nums<endian>(args...), "Read stream numbers");
+    }
+
+    template<Endian endian = Endian::BE, detail::StreamNumber... Ts, ReadStream Self>
+    [[nodiscard]] std::expected<std::tuple<Ts...>, std::error_code> read_nums(this Self& self) noexcept
+    {
+        std::tuple<Ts...> values;
+        if (const auto error = std::apply([&self](auto&... args) {
+                return self.template read_nums<endian>(args...);
+            }, values)) {
+            return std::unexpected(error);
+        }
+        return values;
+    }
+
+    template<Endian endian = Endian::BE, detail::StreamNumber... Ts, ReadStream Self>
+    std::tuple<Ts...> read_nums(this Self& self, Ex)
+    {
+        return detail::stream_value(self.template read_nums<endian, Ts...>(), "Read stream numbers");
+    }
+
+    template<detail::StreamNumber... Ts, ReadStream Self>
+    [[nodiscard]] std::error_code read_nums(this Self& self, Endian endian, Ts&... args) noexcept
+    {
         switch (endian) {
         case Endian::BE:
-            return self.template read_num<Endian::BE, T, BytesToRead>();
+            return self.template read_nums<Endian::BE>(args...);
         case Endian::LE:
-            return self.template read_num<Endian::LE, T, BytesToRead>();
-        default:
-            std::unreachable();
+            return self.template read_nums<Endian::LE>(args...);
         }
+        return std::make_error_code(std::errc::invalid_argument);
     }
 
-    template <Endian endian=Endian::BE, typename ...Ts, ReadStream Self>
-    requires (std::is_arithmetic_v<Ts> && ...)
-    void read_nums(this Self& self, Ts& ...Args) {
-        (self.template read_num<endian>(Args), ...);
+    template<detail::StreamNumber... Ts, ReadStream Self>
+    void read_nums(this Self& self, Ex, Endian endian, Ts&... args)
+    {
+        detail::throw_stream_error(self.read_nums(endian, args...), "Read stream numbers");
     }
 
-    template<Endian endian=Endian::BE, typename ...Ts, ReadStream Self>
-    requires (std::is_arithmetic_v<Ts> && ...)
-    std::tuple<Ts...> read_nums(this Self& self) {
-        return {self.template read_num<endian, Ts>()...};
-    }
-
-    template <typename ...Ts, ReadStream Self>
-    requires (std::is_arithmetic_v<Ts> && ...)
-    void read_nums(this Self& self, Endian endian, Ts& ...Args) {
-        switch (endian) {
-        case Endian::BE:
-            self.template read_nums<Endian::BE>(Args...);
-            break;
-        case Endian::LE:
-            self.template read_nums<Endian::LE>(Args...);
-            break;
-        default:
-            std::unreachable();
-        }
-    }
-
-    template <typename ...Ts, ReadStream Self>
-    requires (std::is_arithmetic_v<Ts> && ...)
-    std::tuple<Ts...> read_nums(this Self& self, Endian endian) {
+    template<detail::StreamNumber... Ts, ReadStream Self>
+    [[nodiscard]] std::expected<std::tuple<Ts...>, std::error_code> read_nums(this Self& self, Endian endian) noexcept
+    {
         switch (endian) {
         case Endian::BE:
             return self.template read_nums<Endian::BE, Ts...>();
         case Endian::LE:
             return self.template read_nums<Endian::LE, Ts...>();
-        default:
-            std::unreachable();
         }
+        return std::unexpected(std::make_error_code(std::errc::invalid_argument));
+    }
+
+    template<detail::StreamNumber... Ts, ReadStream Self>
+    std::tuple<Ts...> read_nums(this Self& self, Ex, Endian endian)
+    {
+        return detail::stream_value(self.template read_nums<Ts...>(endian), "Read stream numbers");
     }
 };
 
 // Mixin class for writer streams
 class WriteStreamMixin {
 public:
+    // Counts bytes accepted by the destination. The source can advance farther on failure.
     template<ReadStream Src, WriteStream Self>
-    void copy_from(this Self& self, Src& in, std::size_t n)
+    [[nodiscard]] TransferResult copy_from(this Self& self, Src& in, std::size_t n) noexcept
     {
         if (!(in.is_open() && self.is_open())) {
-            throw StreamError{"Stream not open"};
+            return {0, std::make_error_code(std::errc::bad_file_descriptor)};
         }
 
+        std::size_t copied = 0;
         // A partial native copy leaves both cursors at the first uncopied byte.
-        if constexpr (requires { { self.copy_from_native(in, n) } -> std::same_as<std::size_t>; }) {
-            n -= self.copy_from_native(in, n);
+        if constexpr (requires { { self.copy_from_native(in, n) } noexcept -> std::same_as<TransferResult>; }) {
+            const auto result = self.copy_from_native(in, n);
+            if (result.error) {
+                return result;
+            }
+            copied = result.bytes_transferred;
         }
-        if (n == 0) {
-            return;
+        if (copied == n) {
+            return {copied, {}};
         }
 
-        const auto buf_sz = n > 4 * 1024 * 1024 ? 4 * 1024 * 1024 : n;
-
-#ifdef __cpp_lib_smart_ptr_for_overwrite
-        const auto buf = std::make_unique_for_overwrite<unsigned char[]>(buf_sz); // Should use stack-allocated array for small buf_sz
-#else
-        const auto buf = std::make_unique<unsigned char[]>(buf_sz);
-#endif
-        while (n > 0) {
-            const auto to_read = n > buf_sz ? buf_sz : n;
-            detail::read_exact(in, buf.get(), to_read);
-            detail::write_exact(self, buf.get(), to_read);
-            n -= to_read;
+        constexpr std::size_t max_buffer_size = 4 * 1024 * 1024;
+        const auto buffer_size = std::min(n - copied, max_buffer_size);
+        const std::unique_ptr<unsigned char[]> buffer(new (std::nothrow) unsigned char[buffer_size]);
+        if (!buffer) {
+            return {copied, std::make_error_code(std::errc::not_enough_memory)};
         }
+
+        while (copied < n) {
+            const auto chunk_size = std::min(n - copied, buffer_size);
+            if (const auto result = in.read_exact(buffer.get(), chunk_size); result.error) {
+                return {copied, result.error};
+            }
+            const auto result = self.write_exact(buffer.get(), chunk_size);
+            copied += result.bytes_transferred;
+            if (result.error) {
+                return {copied, result.error};
+            }
+        }
+        return {copied, {}};
+    }
+
+    template<ReadStream Src, WriteStream Self>
+    void copy_from(this Self& self, Ex, Src& in, std::size_t n)
+    {
+        const auto result = self.copy_from(in, n);
+        if (result.error == std::errc::bad_file_descriptor && !(in.is_open() && self.is_open())) {
+            throw StreamError("Stream not open");
+        }
+        detail::throw_stream_error(result.error, "Copy stream range");
+    }
+
+    // Attempt to restore the original position even if a write fails.
+    template<WriteStream Self>
+    [[nodiscard]] std::error_code patch_bytes(this Self& self, OffsetType offset, const void* buffer, std::size_t n) noexcept
+    {
+        return patch_at(self, offset, [&] { return self.write_exact(buffer, n).error; });
     }
 
     template<WriteStream Self>
-    void patch_bytes(this Self& self, OffsetType offset, const void* buf, std::size_t n) {
-        const auto mark = detail::tell_exact(self);
-        detail::seek_exact(self, offset);
-        detail::write_exact(self, buf, n);
-        detail::seek_exact(self, mark);
+    void patch_bytes(this Self& self, Ex, OffsetType offset, const void* buffer, std::size_t n)
+    {
+        detail::throw_stream_error(self.patch_bytes(offset, buffer, n), "Patch stream bytes");
     }
 
-    template <Endian endian=Endian::BE, typename T, unsigned BytesToWrite = sizeof(T), WriteStream Self>
-    requires (std::is_arithmetic_v<T> && BytesToWrite <= sizeof(T) && !(std::is_signed_v<T> && BytesToWrite < sizeof(T)))
-    void write_num(this Self& self, const T& src)
+    template<Endian endian = Endian::BE, typename T, unsigned Bytes = sizeof(T), WriteStream Self>
+    requires detail::StreamNumberWidth<T, Bytes>
+    [[nodiscard]] std::error_code write_num(this Self& self, const T& src) noexcept
     {
-        static constexpr unsigned offset = target_endian == Endian::LE ? 0 : sizeof(T) - BytesToWrite;
-        const auto p = reinterpret_cast<const unsigned char*>(&src) + offset;
+        constexpr unsigned offset = target_endian == Endian::LE ? 0 : sizeof(T) - Bytes;
+        const auto* bytes = reinterpret_cast<const unsigned char*>(&src) + offset;
         if constexpr (endian != target_endian) {
-            unsigned char buf[BytesToWrite];
-            std::reverse_copy(p, p + BytesToWrite, buf);
-            detail::write_exact(self, buf, BytesToWrite);
-        }
-        else {
-            detail::write_exact(self, p, BytesToWrite);
+            std::array<unsigned char, sizeof(T)> reversed;
+            std::reverse_copy(bytes, bytes + Bytes, reversed.begin());
+            return self.write_exact(reversed.data(), Bytes).error;
+        } else {
+            return self.write_exact(bytes, Bytes).error;
         }
     }
 
-    template <Endian endian=Endian::BE, typename ...Ts, WriteStream Self>
-    requires (std::is_arithmetic_v<Ts> && ...)
-    void write_nums(this Self& self, const Ts& ...Args) {
-        (self.template write_num<endian>(Args), ...);
-    }
-
-    template <Endian endian=Endian::BE, typename T, unsigned BytesToWrite = sizeof(T), WriteStream Self>
-    void patch_num(this Self& self, OffsetType offset, const T &src)
+    template<Endian endian = Endian::BE, typename T, unsigned Bytes = sizeof(T), WriteStream Self>
+    requires detail::StreamNumberWidth<T, Bytes>
+    void write_num(this Self& self, Ex, const T& src)
     {
-        const auto mark = detail::tell_exact(self);
-        detail::seek_exact(self, offset);
-        self.template write_num<endian, T, BytesToWrite>(src);
-        detail::seek_exact(self, mark);
+        detail::throw_stream_error(self.template write_num<endian, T, Bytes>(src), "Write stream number");
+    }
+
+    template<Endian endian = Endian::BE, detail::StreamNumber... Ts, WriteStream Self>
+    [[nodiscard]] std::error_code write_nums(this Self& self, const Ts&... args) noexcept
+    {
+        std::error_code error;
+        (void)((!(error = self.template write_num<endian>(args))) && ...);
+        return error;
+    }
+
+    template<Endian endian = Endian::BE, detail::StreamNumber... Ts, WriteStream Self>
+    void write_nums(this Self& self, Ex, const Ts&... args)
+    {
+        detail::throw_stream_error(self.template write_nums<endian>(args...), "Write stream numbers");
+    }
+
+    template<Endian endian = Endian::BE, typename T, unsigned Bytes = sizeof(T), WriteStream Self>
+    requires detail::StreamNumberWidth<T, Bytes>
+    [[nodiscard]] std::error_code patch_num(this Self& self, OffsetType offset, const T& src) noexcept
+    {
+        return patch_at(self, offset, [&] { return self.template write_num<endian, T, Bytes>(src); });
+    }
+
+    template<Endian endian = Endian::BE, typename T, unsigned Bytes = sizeof(T), WriteStream Self>
+    requires detail::StreamNumberWidth<T, Bytes>
+    void patch_num(this Self& self, Ex, OffsetType offset, const T& src)
+    {
+        detail::throw_stream_error(self.template patch_num<endian, T, Bytes>(offset, src), "Patch stream number");
+    }
+
+private:
+    template<typename Self, typename Write>
+    static std::error_code patch_at(Self& stream, OffsetType offset, Write write) noexcept
+    {
+        const std::expected<OffsetType, std::error_code> mark = stream.tell();
+        if (!mark) {
+            return mark.error();
+        }
+        if (const auto error = stream.seek(offset, SeekFrom::Begin)) {
+            return error;
+        }
+        const auto error = write();
+        const auto restore_error = stream.seek(*mark, SeekFrom::Begin);
+        return error ? error : restore_error;
     }
 };
 

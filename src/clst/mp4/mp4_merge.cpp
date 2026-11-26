@@ -28,10 +28,10 @@ should_descend(uint32_t type)
 // Similar to Mp4Stream::verify(), with additional checks.
 bool
 check_input(Mp4Stream& file) noexcept try {
-    file.seek_ex(0);
+    file.seek(ex, 0);
     bool has_moov = false, has_mdat = false;
     bool err = false;
-    const auto root_atoms = file.get_all_atoms(file.get_length_ex());
+    const auto root_atoms = file.get_all_atoms(file.get_length(ex));
     for (const auto& a : root_atoms) {
         if (a.fourcc == "moov"_fc) {
             if (has_moov) {
@@ -88,8 +88,8 @@ struct MergeInfo {
 bool
 merge_info(MergeInfo& info, Mp4Stream& file, std::size_t file_id, std::size_t current_track_id, int64_t max_read) // bool in_trak?
 {
-    const auto start_pos = file.tell_ex();
-    if (start_pos < 0 || start_pos >= file.get_length_ex()) {
+    const auto start_pos = file.tell(ex);
+    if (start_pos < 0 || start_pos >= file.get_length(ex)) {
         return false;
     }
 
@@ -115,8 +115,8 @@ merge_info(MergeInfo& info, Mp4Stream& file, std::size_t file_id, std::size_t cu
         else { // "leaf" atoms that contain actual data
             if (eq_one(atom.fourcc, "mvhd"_fc, "tkhd"_fc, "mdhd"_fc)) {
                 uint8_t ver; uint32_t _flag;
-                file.read_num(ver);
-                file.read_num<Endian::BE, uint32_t, 3>(_flag);
+                file.read_num(ex, ver);
+                file.read_num<Endian::BE, uint32_t, 3>(ex, _flag);
                 if (ver > 1) {
                     return false; // Version is either 0 or 1.
                 }
@@ -125,11 +125,11 @@ merge_info(MergeInfo& info, Mp4Stream& file, std::size_t file_id, std::size_t cu
                     info.mvhd_duration += [&]() -> uint64_t {
                         if (ver==1) {
                             uint64_t duration;
-                            file.seek_ex(8+8+4, SeekFrom::Current); file.read_num(duration);
+                            file.seek(ex, 8+8+4, SeekFrom::Current); file.read_num(ex, duration);
                             return duration;
                         } else {
                             uint32_t duration;
-                            file.seek_ex(4+4+4, SeekFrom::Current); file.read_num(duration);
+                            file.seek(ex, 4+4+4, SeekFrom::Current); file.read_num(ex, duration);
                             return duration;
                         }
                     }();
@@ -143,11 +143,11 @@ merge_info(MergeInfo& info, Mp4Stream& file, std::size_t file_id, std::size_t cu
                         track_info.tkhd_duration += [&]() -> uint64_t {
                             if (ver==1) {
                                 uint64_t duration;
-                                file.seek_ex(8+8+4+4, SeekFrom::Current); file.read_num(duration);
+                                file.seek(ex, 8+8+4+4, SeekFrom::Current); file.read_num(ex, duration);
                                 return duration;
                             } else {
                                 uint32_t duration;
-                                file.seek_ex(4+4+4+4, SeekFrom::Current); file.read_num(duration);
+                                file.seek(ex, 4+4+4+4, SeekFrom::Current); file.read_num(ex, duration);
                                 return duration;
                             }
                         }();
@@ -156,11 +156,11 @@ merge_info(MergeInfo& info, Mp4Stream& file, std::size_t file_id, std::size_t cu
                         track_info.mdhd_duration += [&]() -> uint64_t {
                             if (ver==1) {
                                 uint64_t duration;
-                                file.seek_ex(8+8+4, SeekFrom::Current); file.read_num(duration);
+                                file.seek(ex, 8+8+4, SeekFrom::Current); file.read_num(ex, duration);
                                 return duration;
                             } else {
                                 uint32_t duration;
-                                file.seek_ex(4+4+4, SeekFrom::Current); file.read_num(duration);
+                                file.seek(ex, 4+4+4, SeekFrom::Current); file.read_num(ex, duration);
                                 return duration;
                             }
                         }();
@@ -177,20 +177,20 @@ merge_info(MergeInfo& info, Mp4Stream& file, std::size_t file_id, std::size_t cu
 
                 if (!(track_info.skip && file_id > 0)) {
                     uint8_t ver; uint32_t _flag;
-                    file.read_num(ver);
-                    file.read_num<Endian::BE, uint32_t, 3>(_flag);
+                    file.read_num(ex, ver);
+                    file.read_num<Endian::BE, uint32_t, 3>(ex, _flag);
                     if (ver > 1) {
                         return false; // Version is either 0 or 1.
                     }
 
                     if (atom.fourcc == "elst"_fc) {
-                        file.seek_ex(4, SeekFrom::Current);
+                        file.seek(ex, 4, SeekFrom::Current);
                         track_info.elst_segment_duration += [&]() -> uint64_t {
                             if (ver==1) {
-                                uint64_t duration; file.read_num(duration);
+                                uint64_t duration; file.read_num(ex, duration);
                                 return duration;
                             } else {
-                                uint32_t duration; file.read_num(duration);
+                                uint32_t duration; file.read_num(ex, duration);
                                 return duration;
                             }
                         }();
@@ -199,11 +199,11 @@ merge_info(MergeInfo& info, Mp4Stream& file, std::size_t file_id, std::size_t cu
                         // The sample size field from all files are assumed to be identical,
                         // i.e. either all 0 or some positive value.
                         uint32_t count;
-                        file.read_nums(track_info.stsz_sample_size, count);
+                        file.read_nums(ex, track_info.stsz_sample_size, count);
                         if (track_info.stsz_sample_size == 0) {
                             for (auto i = 0u; i < count; ++i) {
                                 uint32_t size;
-                                file.read_num(size);
+                                file.read_num(ex, size);
                                 track_info.stsz.push_back(size);
                             }
                         }
@@ -212,13 +212,13 @@ merge_info(MergeInfo& info, Mp4Stream& file, std::size_t file_id, std::size_t cu
                     if (atom.fourcc == "sdtp"_fc) {
                         for (auto i = 0u; i < atom.data_size() - 4; ++i) {
                             uint8_t data;
-                            file.read_num(data);
+                            file.read_num(ex, data);
                             track_info.sdtp.push_back(data);
                         }
                     }
                     if (eq_one(atom.fourcc, "stss"_fc, "stco"_fc, "co64"_fc, "stts"_fc, "stsc"_fc)) {
                         uint32_t count;
-                        file.read_num(count);
+                        file.read_num(ex, count);
                         const auto current_file_mdat_offset = info.mdat_position.at(file_id)[0];
                         // The cast is only for clarity.
                         // ISO C++ guarantees correct final result, even no cast applied here.
@@ -226,27 +226,27 @@ merge_info(MergeInfo& info, Mp4Stream& file, std::size_t file_id, std::size_t cu
                         while(count-- > 0) {
                             if (atom.fourcc == "stss"_fc) {
                                 uint32_t sample_id;
-                                file.read_num(sample_id);
+                                file.read_num(ex, sample_id);
                                 track_info.stss.push_back(sample_id + track_info.sample_offset);
                             }
                             if (atom.fourcc == "stco"_fc) {
                                 uint32_t chunk_offset;
-                                file.read_num(chunk_offset);
+                                file.read_num(ex, chunk_offset);
                                 track_info.stco.push_back(chunk_offset + mdat_adjust); // u32 to u64/i64 is always lossless
                             }
                             if (atom.fourcc == "co64"_fc) {
                                 uint64_t chunk_offset;
-                                file.read_num(chunk_offset);
+                                file.read_num(ex, chunk_offset);
                                 track_info.stco.push_back(int64_t(chunk_offset) + mdat_adjust); // Again, for clarity only.
                             }
                             if (atom.fourcc == "stts"_fc) {
                                 uint32_t consecutive_samples, sample_duration;
-                                file.read_nums(consecutive_samples, sample_duration);
+                                file.read_nums(ex, consecutive_samples, sample_duration);
                                 track_info.stts.push_back({consecutive_samples, sample_duration});
                             }
                             if (atom.fourcc == "stsc"_fc) {
                                 uint32_t first_chunk, samples_per_chunk, sample_desc_id;
-                                file.read_nums(first_chunk, samples_per_chunk, sample_desc_id);
+                                file.read_nums(ex, first_chunk, samples_per_chunk, sample_desc_id);
                                 track_info.stsc.push_back({
                                     first_chunk + track_info.chunk_offset,
                                     samples_per_chunk,
@@ -265,18 +265,18 @@ merge_info(MergeInfo& info, Mp4Stream& file, std::size_t file_id, std::size_t cu
              * Additionally, other tracks might reference the tmcd track, in `tref' box.
              */
             if (atom.fourcc == "stsd"_fc) {
-                file.seek_ex(4+4+4, SeekFrom::Current);
+                file.seek(ex, 4+4+4, SeekFrom::Current);
                 uint32_t format = 0;
-                file.read_num(format);
+                file.read_num(ex, format);
                 if (format == "tmcd"_fc && current_track_id < info.trak_infos.size()) { // we're inside a tmcd trak
                     info.trak_infos.at(current_track_id).skip = true;
                 }
             }
             // Seek to atom end
-            file.seek_ex(atom.end_offset());
+            file.seek(ex, atom.end_offset());
         }
         // End of file not checked, so max_read should not go beyond EOF.
-        if (file.tell_ex() - start_pos >= max_read) {
+        if (file.tell(ex) - start_pos >= max_read) {
             break;
         }
     }
@@ -311,8 +311,8 @@ void copy_with_merge_prog(Dst& dst, Src& src, std::size_t n, std::size_t bufsize
     std::size_t cnt = 0;
     while (cnt < n) {
         const auto sz = n - cnt > bufsize ? bufsize : n - cnt;
-        clst::detail::read_exact(src, buf.get(), sz);
-        clst::detail::write_exact(dst, buf.get(), sz);
+        clst::detail::throw_stream_error(src.read_exact(buf.get(), sz).error, "Read merge input");
+        clst::detail::throw_stream_error(dst.write_exact(buf.get(), sz).error, "Write merge output");
         cnt += sz;
         const int prog_new = int(double(cnt) / n * (prog_end - prog_start)) + prog_start;
         if (prog_new > prog) {
@@ -332,8 +332,8 @@ write_merged(MergeInfo& info, std::vector<Mp4Stream>& files, BinaryFileStream& o
         return {};
     }
     auto& ref = files.front();
-    const auto start_pos = ref.tell_ex();
-    if (start_pos < 0 || start_pos >= ref.get_length_ex()) {
+    const auto start_pos = ref.tell(ex);
+    if (start_pos < 0 || start_pos >= ref.get_length(ex)) {
         return {};
     }
 
@@ -343,9 +343,9 @@ write_merged(MergeInfo& info, std::vector<Mp4Stream>& files, BinaryFileStream& o
         auto new_size = atom.size; // actual output size of this atom
         if (should_descend(atom.fourcc)) {
             // Copy the header first
-            ref.seek_ex(atom.offset);
-            const auto out_header_offset = output.tell_ex();
-            output.copy_from(ref, atom.header_size);
+            ref.seek(ex, atom.offset);
+            const auto out_header_offset = output.tell(ex);
+            output.copy_from(ex, ref, atom.header_size);
             // Descend.
             const auto ret = write_merged(info, files, output, track_id, atom.data_size(), cb);
             if (!ret) {
@@ -358,17 +358,17 @@ write_merged(MergeInfo& info, std::vector<Mp4Stream>& files, BinaryFileStream& o
             }
 
             if (new_size != atom.size) {
-                output.patch_num(out_header_offset, uint32_t(new_size));
+                output.patch_num(ex, out_header_offset, uint32_t(new_size));
             }
         }
         else if (atom.fourcc == "mdat"_fc) {
             // Write as extended mdat box.
-            output.write_nums(uint32_t(1), "mdat"_fc);
-            const auto mdat_extended_size_pos = output.tell_ex();
-            output.write_num(uint64_t(0)); // re-write later
+            output.write_nums(ex, uint32_t(1), "mdat"_fc);
+            const auto mdat_extended_size_pos = output.tell(ex);
+            output.write_num(ex, uint64_t(0)); // re-write later
             new_size = 16;
             // Now we're at mdat data start.
-            info.mdat_final_position = output.tell_ex();
+            info.mdat_final_position = output.tell(ex);
 
             std::uint64_t mdat_size_sum = 0; // for calculating progress
             for (const auto& mdat : info.mdat_position) {
@@ -378,38 +378,38 @@ write_merged(MergeInfo& info, std::vector<Mp4Stream>& files, BinaryFileStream& o
             for (const auto file_id : std::views::iota(0uz, files.size())) {
                 auto& f = files[file_id];
                 const auto& [data_offset, data_size] = info.mdat_position.at(file_id);
-                f.seek_ex(data_offset);
+                f.seek(ex, data_offset);
                 if (cb) {
                     const int prog_start = int(double(mdat_size_copied) / mdat_size_sum * 98) + 1;
                     const int prog_end = int(double(mdat_size_copied += data_size) / mdat_size_sum * 98) + 1;
                     copy_with_merge_prog(output, f, data_size, 4*1024*1024, cb, prog_start, prog_end);
                 }
                 else {
-                    output.copy_from(f, data_size);
+                    output.copy_from(ex, f, data_size);
                 }
                 new_size += data_size;
             }
 
             // patch final size
-            output.patch_num(mdat_extended_size_pos, new_size);
+            output.patch_num(ex, mdat_extended_size_pos, new_size);
 
-            ref.seek_ex(atom.end_offset());
+            ref.seek(ex, atom.end_offset());
         }
         else if (eq_one(atom.fourcc, "mvhd"_fc, "tkhd"_fc, "mdhd"_fc, "elst"_fc)) {
             uint8_t ver; uint32_t _flags;
-            ref.read_num(ver);
-            ref.read_num<Endian::BE, uint32_t, 3>(_flags);
+            ref.read_num(ex, ver);
+            ref.read_num<Endian::BE, uint32_t, 3>(ex, _flags);
 
             // Copy original box, then patch value.
-            ref.seek_ex(atom.offset);
-            const auto pos = output.tell_ex() + atom.header_size + 4; // after version & flags
-            output.copy_from(ref, atom.size);
+            ref.seek(ex, atom.offset);
+            const auto pos = output.tell(ex) + atom.header_size + 4; // after version & flags
+            output.copy_from(ex, ref, atom.size);
 
             if (atom.fourcc == "mvhd"_fc) {
                 if (ver == 1) {
-                    output.patch_num(pos + 8 + 8 + 4, info.mvhd_duration);
+                    output.patch_num(ex, pos + 8 + 8 + 4, info.mvhd_duration);
                 } else {
-                    output.patch_num(pos + 4 + 4 + 4, uint32_t(info.mvhd_duration));
+                    output.patch_num(ex, pos + 4 + 4 + 4, uint32_t(info.mvhd_duration));
                 }
             }
             else {
@@ -419,23 +419,23 @@ write_merged(MergeInfo& info, std::vector<Mp4Stream>& files, BinaryFileStream& o
                 const auto& track_info = info.trak_infos[track_id];
                 if (atom.fourcc == "tkhd"_fc) {
                     if (ver == 1) {
-                        output.patch_num(pos + 8 + 8 + 8 + 4, track_info.tkhd_duration);
+                        output.patch_num(ex, pos + 8 + 8 + 8 + 4, track_info.tkhd_duration);
                     } else {
-                        output.patch_num(pos + 4 + 4 + 4 + 4, uint32_t(track_info.tkhd_duration));
+                        output.patch_num(ex, pos + 4 + 4 + 4 + 4, uint32_t(track_info.tkhd_duration));
                     }
                 }
                 if (atom.fourcc == "mdhd"_fc) {
                     if (ver == 1) {
-                        output.patch_num(pos + 8 + 8 + 4, track_info.mdhd_duration);
+                        output.patch_num(ex, pos + 8 + 8 + 4, track_info.mdhd_duration);
                     } else {
-                        output.patch_num(pos + 4 + 4 + 4, uint32_t(track_info.mdhd_duration));
+                        output.patch_num(ex, pos + 4 + 4 + 4, uint32_t(track_info.mdhd_duration));
                     }
                 }
                 if (atom.fourcc == "elst"_fc) {
                     if (ver == 1) {
-                        output.patch_num(pos + 4, track_info.elst_segment_duration);
+                        output.patch_num(ex, pos + 4, track_info.elst_segment_duration);
                     } else {
-                        output.patch_num(pos + 4, uint32_t(track_info.elst_segment_duration));
+                        output.patch_num(ex, pos + 4, uint32_t(track_info.elst_segment_duration));
                     }
                 }
             }
@@ -444,12 +444,12 @@ write_merged(MergeInfo& info, std::vector<Mp4Stream>& files, BinaryFileStream& o
         {
             // We'll write these boxes using only the merged info,
             // so skip to the end.
-            ref.seek_ex(atom.end_offset());
+            ref.seek(ex, atom.end_offset());
 
-            const auto out_pos = output.tell_ex();
-            output.write_num(uint32_t(0)); // patch later
-            output.write_num( atom.fourcc == "stco"_fc ? "co64"_fc : atom.fourcc );
-            output.write_num(uint32_t(0)); // version/flags
+            const auto out_pos = output.tell(ex);
+            output.write_num(ex, uint32_t(0)); // patch later
+            output.write_num(ex, atom.fourcc == "stco"_fc ? "co64"_fc : atom.fourcc );
+            output.write_num(ex, uint32_t(0)); // version/flags
             new_size = 12;
 
             if (track_id >= info.trak_infos.size()) {
@@ -471,65 +471,65 @@ write_merged(MergeInfo& info, std::vector<Mp4Stream>& files, BinaryFileStream& o
                     }
                 }
 
-                output.write_num(uint32_t(new_stts.size()));
+                output.write_num(ex, uint32_t(new_stts.size()));
                 new_size += 4;
                 for (const auto& [count, duration] : new_stts) {
-                    output.write_nums(count, duration);
+                    output.write_nums(ex, count, duration);
                     new_size += 8;
                 }
             }
             if (atom.fourcc == "stsz"_fc) {
-                output.write_nums(track_info.stsz_sample_size, track_info.stsz_count);
+                output.write_nums(ex, track_info.stsz_sample_size, track_info.stsz_count);
                 new_size += 8;
                 for (const auto& x : track_info.stsz) {
-                    output.write_num(x);
+                    output.write_num(ex, x);
                     new_size += 4;
                 }
             }
             if (atom.fourcc == "stss"_fc) {
-                output.write_num(uint32_t(track_info.stss.size()));
+                output.write_num(ex, uint32_t(track_info.stss.size()));
                 new_size += 4;
                 for (const auto& x : track_info.stss) {
-                    output.write_num(x);
+                    output.write_num(ex, x);
                     new_size += 4;
                 }
             }
             if (atom.fourcc == "stco"_fc || atom.fourcc == "co64"_fc) {
-                output.write_num(uint32_t(track_info.stco.size()));
+                output.write_num(ex, uint32_t(track_info.stco.size()));
                 new_size += 4;
 
-                track_info.co64_final_position = output.tell_ex();
+                track_info.co64_final_position = output.tell(ex);
 
                 for ([[maybe_unused]] const auto& _x : track_info.stco) {
-                    output.write_num(uint64_t(0)); // patch after exiting this function.
+                    output.write_num(ex, uint64_t(0)); // patch after exiting this function.
                     new_size += 8;
                 }
             }
             if (atom.fourcc == "sdtp"_fc) {
                 for (const auto& x : track_info.sdtp) {
-                    output.write_num(x);
+                    output.write_num(ex, x);
                     new_size += sizeof(x);
                 }
             }
             if (atom.fourcc == "stsc"_fc) {
-                output.write_num(uint32_t(track_info.stsc.size()));
+                output.write_num(ex, uint32_t(track_info.stsc.size()));
                 new_size += 4;
                 for (const auto& [x1, x2, x3] : track_info.stsc) {
-                    output.write_nums(x1, x2, x3);
+                    output.write_nums(ex, x1, x2, x3);
                     new_size += 12;
                 }
             }
             // patch atom size
-            output.patch_num(out_pos, uint32_t(new_size));
+            output.patch_num(ex, out_pos, uint32_t(new_size));
         }
         else {  // Opaque boxes, just copy through.
-            ref.seek_ex(atom.offset);
-            output.copy_from(ref, atom.size);
+            ref.seek(ex, atom.offset);
+            output.copy_from(ex, ref, atom.size);
         }
 
         total_written += new_size;
 
-        if (ref.tell_ex() - start_pos >= max_read) {
+        if (ref.tell(ex) - start_pos >= max_read) {
             break;
         }
     }
@@ -593,7 +593,7 @@ Mp4Merger::run() noexcept try
         if (!check_input(file)) {
             return MergeResult::InvalidInput;
         }
-        file.seek_ex(0);
+        file.seek(ex, 0);
     }
 
     impl->prog(0);
@@ -604,12 +604,12 @@ Mp4Merger::run() noexcept try
         auto& file = input_streams[i];
         // Get mdat info
         // should not throw, since we've checked for mdat.
-        const auto mdat = file.seek_to_atom_data("mdat"_fc, file.get_length_ex());
+        const auto mdat = file.seek_to_atom_data("mdat"_fc, file.get_length(ex));
         info->mdat_position.push_back({mdat.data_offset(), mdat.data_size()});
 
         // Update info list.
-        file.seek_ex(0);
-        if (!merge_info(*info, file, i, 0, file.get_length_ex())) {
+        file.seek(ex, 0);
+        if (!merge_info(*info, file, i, 0, file.get_length(ex))) {
             return MergeResult::InternalError;
         }
 
@@ -629,16 +629,16 @@ Mp4Merger::run() noexcept try
         return MergeResult::IoError;
     }
     // Write to output file.
-    input_streams.front().seek_ex(0);
-    if (!write_merged(*info, input_streams, output_stream, 0, input_streams.front().get_length_ex(), impl->prog_cb)) {
+    input_streams.front().seek(ex, 0);
+    if (!write_merged(*info, input_streams, output_stream, 0, input_streams.front().get_length(ex), impl->prog_cb)) {
         return MergeResult::InternalError;
     }
 
     // Patch co64
     for (const auto &track : info->trak_infos) {
-        output_stream.seek_ex(track.co64_final_position);
+        output_stream.seek(ex, track.co64_final_position);
         for (const auto &x : track.stco) {
-            output_stream.write_num(x + info->mdat_final_position);
+            output_stream.write_num(ex, x + info->mdat_final_position);
         }
     }
 

@@ -11,7 +11,9 @@ namespace clst {
 class BinaryFileStream : public RWStreamTag, public RWStreamMixin {
 public:
     BinaryFileStream() noexcept = default;
-    BinaryFileStream(const char* filename, FileStreamMode mode = FileStreamMode::Read);
+    // On failure the untagged constructor leaves the stream closed. Open reports the error code.
+    BinaryFileStream(const char* filename, FileStreamMode mode = FileStreamMode::Read) noexcept;
+    BinaryFileStream(Ex, const char* filename, FileStreamMode mode = FileStreamMode::Read);
     ~BinaryFileStream() noexcept;
 
     BinaryFileStream(const BinaryFileStream&) = delete;
@@ -20,30 +22,32 @@ public:
     BinaryFileStream& operator=(BinaryFileStream&& rhs) noexcept;
 
     [[nodiscard]] std::error_code open(const char* filename, FileStreamMode mode = FileStreamMode::Read) noexcept;
+    void open(Ex, const char* filename, FileStreamMode mode = FileStreamMode::Read);
     [[nodiscard]] std::error_code close() noexcept;
+    void close(Ex);
     [[nodiscard]] std::error_code flush() noexcept;
+    void flush(Ex);
     [[nodiscard]] bool is_open() const noexcept;
     [[nodiscard]] std::expected<OffsetType, std::error_code> get_length() const noexcept;
+    [[nodiscard]] OffsetType get_length(Ex) const;
     // Borrowed until close or an ownership transfer.
     [[nodiscard]] std::FILE* get_handle() const noexcept { return fp_; }
 
     // A nonempty read that returns zero bytes without an error has reached EOF.
     [[nodiscard]] TransferResult read(void* buf, std::size_t n) noexcept;
+    std::size_t read(Ex, void* buf, std::size_t n);
     [[nodiscard]] TransferResult write(const void* buf, std::size_t n) noexcept;
-    [[nodiscard]] std::error_code seek(OffsetType offset, SeekFrom from = SeekFrom::Begin) noexcept;
-    [[nodiscard]] std::expected<OffsetType, std::error_code> tell() const noexcept;
+    std::size_t write(Ex, const void* buf, std::size_t n);
+    // Retry interrupted calls and report progress if an exact transfer fails.
+    [[nodiscard]] TransferResult read_exact(void* buf, std::size_t n) noexcept;
+    [[nodiscard]] TransferResult write_exact(const void* buf, std::size_t n) noexcept;
+    void read_exact(Ex, void* buf, std::size_t n) { read(ex, buf, n); }
+    void write_exact(Ex, const void* buf, std::size_t n) { write(ex, buf, n); }
 
-    void open_ex(const char* filename, FileStreamMode mode = FileStreamMode::Read);
-    void close_ex();
-    void flush_ex();
-    std::size_t read_ex(void* buf, std::size_t n);
-    std::size_t write_ex(const void* buf, std::size_t n);
-    // Transfer exactly n bytes or throw std::system_error.
-    void read_exact(void* buf, std::size_t n) { read_ex(buf, n); }
-    void write_exact(const void* buf, std::size_t n) { write_ex(buf, n); }
-    void seek_ex(OffsetType offset, SeekFrom from = SeekFrom::Begin);
-    [[nodiscard]] OffsetType tell_ex() const;
-    [[nodiscard]] OffsetType get_length_ex() const;
+    [[nodiscard]] std::error_code seek(OffsetType offset, SeekFrom from = SeekFrom::Begin) noexcept;
+    void seek(Ex, OffsetType offset, SeekFrom from = SeekFrom::Begin);
+    [[nodiscard]] std::expected<OffsetType, std::error_code> tell() const noexcept;
+    [[nodiscard]] OffsetType tell(Ex) const;
 
 private:
     enum class Direction { None, Read, Write };

@@ -53,9 +53,14 @@ std::error_code flush_output(std::FILE* fp) noexcept
 
 } // namespace
 
-BinaryFileStream::BinaryFileStream(const char* filename, FileStreamMode mode)
+BinaryFileStream::BinaryFileStream(const char* filename, FileStreamMode mode) noexcept
 {
-    open_ex(filename, mode);
+    (void)open(filename, mode);
+}
+
+BinaryFileStream::BinaryFileStream(Ex, const char* filename, FileStreamMode mode)
+{
+    open(ex, filename, mode);
 }
 
 BinaryFileStream::~BinaryFileStream() noexcept
@@ -241,52 +246,58 @@ std::expected<OffsetType, std::error_code> BinaryFileStream::get_length() const 
     return info.st_size;
 }
 
-void BinaryFileStream::open_ex(const char* filename, FileStreamMode mode)
+void BinaryFileStream::open(Ex, const char* filename, FileStreamMode mode)
 {
-    detail::throw_file_error(open(filename, mode), "Opening file");
+    detail::throw_stream_error(open(filename, mode), "Opening file");
 }
 
-void BinaryFileStream::close_ex()
+void BinaryFileStream::close(Ex)
 {
-    detail::throw_file_error(close(), "Closing file");
+    detail::throw_stream_error(close(), "Closing file");
 }
 
-void BinaryFileStream::flush_ex()
+void BinaryFileStream::flush(Ex)
 {
-    detail::throw_file_error(flush(), "Flushing file");
+    detail::throw_stream_error(flush(), "Flushing file");
 }
 
-std::size_t BinaryFileStream::read_ex(void* buf, std::size_t n)
+TransferResult BinaryFileStream::read_exact(void* buf, std::size_t n) noexcept
 {
-    return detail::read_file_exact(buf, n, [this](void* data, std::size_t size) { return read(data, size); });
+    return detail::read_file_exact(buf, n, [this](void* data, std::size_t size) noexcept { return read(data, size); });
 }
 
-std::size_t BinaryFileStream::write_ex(const void* buf, std::size_t n)
+std::size_t BinaryFileStream::read(Ex, void* buf, std::size_t n)
 {
-    return detail::write_file_exact(buf, n, [this](const void* data, std::size_t size) { return write(data, size); });
+    const auto result = read_exact(buf, n);
+    detail::throw_stream_error(result.error, "Reading file");
+    return result.bytes_transferred;
 }
 
-void BinaryFileStream::seek_ex(OffsetType offset, SeekFrom from)
+TransferResult BinaryFileStream::write_exact(const void* buf, std::size_t n) noexcept
 {
-    detail::throw_file_error(seek(offset, from), "Seeking file");
+    return detail::write_file_exact(buf, n, [this](const void* data, std::size_t size) noexcept { return write(data, size); });
 }
 
-OffsetType BinaryFileStream::tell_ex() const
+std::size_t BinaryFileStream::write(Ex, const void* buf, std::size_t n)
 {
-    const auto position = tell();
-    if (!position) {
-        throw std::system_error(position.error(), "Getting file position");
-    }
-    return *position;
+    const auto result = write_exact(buf, n);
+    detail::throw_stream_error(result.error, "Writing file");
+    return result.bytes_transferred;
 }
 
-OffsetType BinaryFileStream::get_length_ex() const
+void BinaryFileStream::seek(Ex, OffsetType offset, SeekFrom from)
 {
-    const auto length = get_length();
-    if (!length) {
-        throw std::system_error(length.error(), "Getting file length");
-    }
-    return *length;
+    detail::throw_stream_error(seek(offset, from), "Seeking file");
+}
+
+OffsetType BinaryFileStream::tell(Ex) const
+{
+    return detail::stream_value(tell(), "Getting file position");
+}
+
+OffsetType BinaryFileStream::get_length(Ex) const
+{
+    return detail::stream_value(get_length(), "Getting file length");
 }
 
 } // namespace clst

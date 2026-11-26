@@ -17,10 +17,10 @@ std::optional<std::uint64_t> read_timestamp(const std::optional<RecordView>& rec
     }
     Cursor<false> cursor(record->value.data(), sizeof(std::uint64_t));
     const auto value = cursor.read_num<Endian::BE, std::uint64_t>();
-    if (record->type == 'j' && (value >> 63) != 0) {
+    if (!value || (record->type == 'j' && (*value >> 63) != 0)) {
         return std::nullopt;
     }
-    return value;
+    return *value;
 }
 
 std::vector<std::uint64_t> sample_indices(std::span<const SampleBatch> batches)

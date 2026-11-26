@@ -20,26 +20,26 @@ parse_trak(Mp4Stream& file, const Mp4Stream::AtomInfo& trak_atom) noexcept try {
     {
         file.seek_to_atom_data("tkhd"_fc, trak_atom);
         uint8_t ver; uint32_t _flag;
-        file.read_num(ver);
-        file.read_num<Endian::BE, uint32_t, 3>(_flag);
+        file.read_num(ex, ver);
+        file.read_num<Endian::BE, uint32_t, 3>(ex, _flag);
         if (ver == 1) {
-            file.seek_ex(8+8, SeekFrom::Current);
-            file.read_num(track_info.trak_id);
-            file.seek_ex(4, SeekFrom::Current);
-            file.read_num(track_info.tkhd_duration);
+            file.seek(ex, 8+8, SeekFrom::Current);
+            file.read_num(ex, track_info.trak_id);
+            file.seek(ex, 4, SeekFrom::Current);
+            file.read_num(ex, track_info.tkhd_duration);
         } else { // version == 0
-            file.seek_ex(4+4, SeekFrom::Current);
-            file.read_num(track_info.trak_id);
-            file.seek_ex(4, SeekFrom::Current);
+            file.seek(ex, 4+4, SeekFrom::Current);
+            file.read_num(ex, track_info.trak_id);
+            file.seek(ex, 4, SeekFrom::Current);
             uint32_t duration;
-            file.read_num(duration);
+            file.read_num(ex, duration);
             track_info.tkhd_duration = duration;
         }
-        file.seek_ex(4*2+2+2+2+2, SeekFrom::Current);
+        file.seek(ex, 4*2+2+2+2+2, SeekFrom::Current);
         for (auto& x : track_info.tkhd_matrix) {
-            file.read_num(x);
+            file.read_num(ex, x);
         }
-        file.read_nums(track_info.tkhd_width, track_info.tkhd_height);
+        file.read_nums(ex, track_info.tkhd_width, track_info.tkhd_height);
     }
 
     const auto mdia_atom = file.seek_to_atom_data("mdia"_fc, trak_atom);
@@ -47,15 +47,15 @@ parse_trak(Mp4Stream& file, const Mp4Stream::AtomInfo& trak_atom) noexcept try {
     {
         file.seek_to_atom_data("mdhd"_fc, mdia_atom);
         uint8_t ver; uint32_t _flag;
-        file.read_num(ver);
-        file.read_num<Endian::BE, uint32_t, 3>(_flag);
-        file.seek_ex(ver==1? 8+8 : 4+4, SeekFrom::Current);
-        file.read_num(track_info.mdhd_timescale);
+        file.read_num(ex, ver);
+        file.read_num<Endian::BE, uint32_t, 3>(ex, _flag);
+        file.seek(ex, ver==1? 8+8 : 4+4, SeekFrom::Current);
+        file.read_num(ex, track_info.mdhd_timescale);
         if (ver==1) {
-            file.read_num(track_info.mdhd_duration);
+            file.read_num(ex, track_info.mdhd_duration);
         } else {
             uint32_t duration;
-            file.read_num(duration);
+            file.read_num(ex, duration);
             track_info.mdhd_duration = duration;
         }
     }
@@ -63,10 +63,10 @@ parse_trak(Mp4Stream& file, const Mp4Stream::AtomInfo& trak_atom) noexcept try {
     {
         file.seek_to_atom_data("hdlr"_fc, mdia_atom);
         uint8_t ver; uint32_t _flag;
-        file.read_num(ver);
-        file.read_num<Endian::BE, uint32_t, 3>(_flag);
-        file.seek_ex(4, SeekFrom::Current);
-        file.read_num(track_info.hdlr_type);
+        file.read_num(ex, ver);
+        file.read_num<Endian::BE, uint32_t, 3>(ex, _flag);
+        file.seek(ex, 4, SeekFrom::Current);
+        file.read_num(ex, track_info.hdlr_type);
     }
     const auto minf_atom = file.seek_to_atom_data("minf"_fc, mdia_atom);
     // vmhd/smhd, dinf...
@@ -75,27 +75,27 @@ parse_trak(Mp4Stream& file, const Mp4Stream::AtomInfo& trak_atom) noexcept try {
     //stsd
     {
         file.seek_to_atom_data("stsd"_fc, stbl_atom);
-        file.seek_ex(4, SeekFrom::Current);
-        file.read_num(track_info.sample_desc_count);
-        file.seek_ex(4, SeekFrom::Current);
-        file.read_num(track_info.stsd_first_format);
+        file.seek(ex, 4, SeekFrom::Current);
+        file.read_num(ex, track_info.sample_desc_count);
+        file.seek(ex, 4, SeekFrom::Current);
+        file.read_num(ex, track_info.stsd_first_format);
     }
 
     //loop over boxes in stbl
     //Existence of required atoms is not checked.
-    file.seek_ex(stbl_atom.data_offset());
-    while(file.tell_ex() < (OffsetType)stbl_atom.end_offset()) { // int64_t?
+    file.seek(ex, stbl_atom.data_offset());
+    while(file.tell(ex) < (OffsetType)stbl_atom.end_offset()) { // int64_t?
         const auto atom = file.parse_atom();
         uint8_t ver; uint32_t _flag; // not used here...
-        file.read_num(ver);
-        file.read_num<Endian::BE, uint32_t, 3>(_flag);
+        file.read_num(ex, ver);
+        file.read_num<Endian::BE, uint32_t, 3>(ex, _flag);
 
         if (atom.fourcc == "stsz"_fc) { // `stz2' is not supported
-            file.read_nums(track_info.stsz_sample_size, track_info.stsz_count);
+            file.read_nums(ex, track_info.stsz_sample_size, track_info.stsz_count);
             if (track_info.stsz_sample_size == 0) {
                 for (auto i = 0u; i < track_info.stsz_count; ++i) {
                     uint32_t size;
-                    file.read_num(size);
+                    file.read_num(ex, size);
                     track_info.stsz.push_back(size);
                 }
             }
@@ -103,32 +103,32 @@ parse_trak(Mp4Stream& file, const Mp4Stream::AtomInfo& trak_atom) noexcept try {
 
         else if (eq_one(atom.fourcc, "stco"_fc, "co64"_fc, "stts"_fc, "stsc"_fc)) {
             uint32_t count;
-            file.read_num(count);
+            file.read_num(ex, count);
             while(count-- > 0) {
                 if (atom.fourcc == "stts"_fc) {
                     uint32_t consecutive_samples, sample_duration;
-                    file.read_nums(consecutive_samples, sample_duration);
+                    file.read_nums(ex, consecutive_samples, sample_duration);
                     track_info.stts.emplace_back(consecutive_samples, sample_duration);
                 }
                 else if (atom.fourcc == "stco"_fc) {
                     uint32_t chunk_offset;
-                    file.read_num(chunk_offset);
+                    file.read_num(ex, chunk_offset);
                     track_info.stco.push_back(chunk_offset);
                 }
                 else if (atom.fourcc == "co64"_fc) {
                     uint64_t chunk_offset;
-                    file.read_num(chunk_offset);
+                    file.read_num(ex, chunk_offset);
                     track_info.stco.push_back(chunk_offset);
                 }
                 else if (atom.fourcc == "stsc"_fc) {
                     uint32_t first_chunk, samples_per_chunk, sample_desc_id;
-                    file.read_nums(first_chunk, samples_per_chunk, sample_desc_id);
+                    file.read_nums(ex, first_chunk, samples_per_chunk, sample_desc_id);
                     track_info.stsc.emplace_back(first_chunk, samples_per_chunk, sample_desc_id);
                 }
             }
         }
 
-        file.seek_ex(atom.end_offset());
+        file.seek(ex, atom.end_offset());
     }
 
     return track_info;
@@ -145,10 +145,10 @@ parse_trak(Mp4Stream& file, const Mp4Stream::AtomInfo& trak_atom) noexcept try {
 std::vector<TrackInfo>
 get_tracks(Mp4Stream& file) noexcept try {
 {
-    file.seek_ex(0);
+    file.seek(ex, 0);
     std::vector<TrackInfo> result_tracks;
 
-    const auto moov = file.seek_to_atom_data("moov"_fc, file.get_length_ex());
+    const auto moov = file.seek_to_atom_data("moov"_fc, file.get_length(ex));
     const auto atoms_in_moov = file.get_all_atoms(moov.data_size());
 
     for (const auto& atom : atoms_in_moov) {
@@ -216,10 +216,10 @@ SampleReader::read_next(SampleInfo& out) noexcept try {
     for(auto i = sample_idx - sample_idx_in_chunk; i < sample_idx; ++i) {
         sample_offset_in_chunk += (track_info.stsz_sample_size == 0? track_info.stsz[i] : track_info.stsz_sample_size);
     }
-    file.seek_ex(track_info.stco[chunk_idx] + sample_offset_in_chunk);
+    file.seek(ex, track_info.stco[chunk_idx] + sample_offset_in_chunk);
     const auto sample_size = track_info.stsz_sample_size == 0 ? track_info.stsz[sample_idx] : track_info.stsz_sample_size;
     out.data.resize(sample_size);
-    file.read_ex(out.data.data(), out.data.size());
+    file.read(ex, out.data.data(), out.data.size());
 
     //update state for next read:
     ++sample_idx;
