@@ -109,6 +109,11 @@ types::Tuple4d camera_quaternion(std::span<const double, 4> values) noexcept
     return {-values[1], -values[2], -values[3], values[0]};
 }
 
+types::Tuple5d timed_camera_quaternion(double timestamp, std::span<const double, 4> values) noexcept
+{
+    return std::tuple_cat(std::tuple(timestamp), camera_quaternion(values));
+}
+
 std::optional<std::vector<gpmf::SampleTiming>> stream_timing(
     FourCC key, const SensorStream& stream, std::optional<gpmf::SampleClock> clock)
 {
@@ -124,27 +129,31 @@ std::optional<std::vector<gpmf::SampleTiming>> stream_timing(
     return timing;
 }
 
-void store_camera_orientation(VarMap& data, const SensorStream& stream, std::size_t video_frames,
-                              double frame_rate, std::optional<gpmf::SampleClock> clock)
+void store_camera_orientation(VarMap& data, const SensorStream& stream, double frame_rate,
+                              std::optional<gpmf::SampleClock> clock)
 {
-    types::QuaternionVec quaternions;
-    quaternions.reserve(stream.values.size() / 4);
-    for (std::size_t index = 0; index < stream.values.size(); index += 4) {
-        quaternions.push_back(camera_quaternion(std::span<const double, 4>(stream.values.data() + index, 4)));
-    }
-
-    if (frame_rate > 0.0 && video_frames != 0) {
-        const auto frame_count = std::min(quaternions.size(), video_frames);
+    const auto sample_count = stream.values.size() / 4;
+    if (frame_rate > 0.0) {
         types::TimedQuaternionVec timed;
-        timed.reserve(frame_count);
-        for (std::size_t index = 0; index < frame_count; ++index) {
-            timed.push_back(std::tuple_cat(std::tuple(index / frame_rate), quaternions[index]));
+        timed.reserve(sample_count);
+        // Some recordings carry extra CORI samples beyond the last video frame.
+        for (std::size_t index = 0; index < sample_count; ++index) {
+            timed.push_back(timed_camera_quaternion(index / frame_rate,
+                std::span<const double, 4>(stream.values.data() + 4 * index, 4)));
         }
         data[KeyId::TimedCameraQuaternionData] = std::move(timed);
-    } else if (const auto timing = stream_timing("CORI"_fc, stream, clock)) {
-        data[KeyId::TimedCameraQuaternionData] = timed_samples<4>(stream, *timing, [](double timestamp, auto values) {
-            return std::tuple_cat(std::tuple(timestamp), camera_quaternion(values));
-        });
+        return;
+    }
+    if (const auto timing = stream_timing("CORI"_fc, stream, clock)) {
+        data[KeyId::TimedCameraQuaternionData] = timed_samples<4>(stream, *timing, timed_camera_quaternion);
+        return;
+    }
+
+    // Preserve orientation samples when timing is unavailable.
+    types::QuaternionVec quaternions;
+    quaternions.reserve(sample_count);
+    for (std::size_t index = 0; index < stream.values.size(); index += 4) {
+        quaternions.push_back(camera_quaternion(std::span<const double, 4>(stream.values.data() + index, 4)));
     }
     data[KeyId::CameraQuaternionData] = std::move(quaternions);
 }
@@ -202,7 +211,6 @@ void read_telemetry(mp4::Mp4Stream& file, CameraInfo& info, const VideoInfo* vid
 
     const double frame_rate = video_info && video_info->is_cfr && std::isfinite(video_info->fps) && video_info->fps > 0.0
         ? video_info->fps : 0.0;
-    const auto video_frames = video_info && video_info->nb_frames > 0 ? static_cast<std::size_t>(video_info->nb_frames) : 0;
     std::optional<gpmf::SampleClock> clock;
     if (const auto cori = streams.find("CORI"_fc); cori != streams.end() && !cori->second.batches.empty()) {
         const double first_frame_packet = cori->second.batches.front().start;
@@ -230,7 +238,7 @@ void read_telemetry(mp4::Mp4Stream& file, CameraInfo& info, const VideoInfo* vid
             continue;
         }
         if (key == "CORI"_fc) {
-            store_camera_orientation(info.extras[GroupId::SensorData], stream, video_frames, frame_rate, clock);
+            store_camera_orientation(info.extras[GroupId::SensorData], stream, frame_rate, clock);
             continue;
         }
         const auto timing = stream_timing(key, stream, clock);

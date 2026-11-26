@@ -251,15 +251,23 @@ int clst::main_clst(int argc, char** argv) noexcept
                 }
             }
             if (dump_quat) {
-                const auto quat = info->extras.get<types::QuaternionVec>(GroupId::SensorData, KeyId::CameraQuaternionData);
-                if (quat) {
+                const auto timed = info->extras.get<types::TimedQuaternionVec>(GroupId::SensorData, KeyId::TimedCameraQuaternionData);
+                const auto untimed = timed ? nullptr
+                    : info->extras.get<types::QuaternionVec>(GroupId::SensorData, KeyId::CameraQuaternionData);
+                if (timed || untimed) {
                     CLST_LOG_INFO("Dumping quaternion data from {}", filename);
                     const auto out_filename = std::string(filename) += "_quat.txt";
                     std::ofstream ofs(out_filename);
                     if (ofs) {
                         std::println(ofs, "qx, qy, qz, qw");
-                        for (const auto& entry : *quat) {
-                            std::println(ofs, "{:n}", entry);
+                        if (timed) {
+                            for (const auto& [timestamp, qx, qy, qz, qw] : *timed) {
+                                std::println(ofs, "{:n}", types::Tuple4d(qx, qy, qz, qw));
+                            }
+                        } else {
+                            for (const auto& entry : *untimed) {
+                                std::println(ofs, "{:n}", entry);
+                            }
                         }
                         CLST_LOG_NOTICE("Quaternion data saved to {}", out_filename);
                     }
