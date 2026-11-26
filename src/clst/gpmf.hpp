@@ -60,6 +60,9 @@ struct Modifiers {
     std::optional<RecordView> matrix;
     std::optional<RecordView> orientation_in;
     std::optional<RecordView> orientation_out;
+    std::optional<RecordView> timestamp;
+    std::optional<RecordView> total_samples;
+    std::optional<RecordView> time_offset;
 
     // Keep the first occurrence of each modifier in this level.
     void observe(const RecordView& record) noexcept;
@@ -118,6 +121,40 @@ template<typename Visitor>
 // record or invalid modifier. Each sample must have exactly axis_count numeric elements.
 [[nodiscard]] std::optional<std::vector<double>> decode_scaled_samples(
     const RecordView& record, const Modifiers& modifiers, std::size_t axis_count);
+
+struct SampleBatch {
+    double start; // MP4 payload start in seconds, relative to the first video frame
+    double duration;
+    std::size_t count;
+    std::optional<std::uint64_t> timestamp = {};
+    std::optional<std::uint32_t> total_samples = {};
+    double delay = 0.0;
+};
+
+struct SampleClock {
+    std::uint64_t timestamp;
+    double time; // Relative time in seconds at the reference timestamp
+    double seconds_per_tick;
+};
+
+struct SampleTiming {
+    double start;
+    double period;
+
+    [[nodiscard]] double at(std::uint64_t index) const noexcept { return start + index * period; }
+};
+
+[[nodiscard]] SampleBatch sample_batch(const RecordView& record, const Modifiers& modifiers,
+                                       double start, double duration) noexcept;
+
+// A positive frame rate means this reference stream has one sample per video frame.
+[[nodiscard]] std::optional<SampleClock> estimate_sample_clock(std::span<const SampleBatch> batches,
+                                                               double frame_rate = 0.0);
+
+// Takes nonempty batches in packet order and returns one timing per batch. With no
+// usable hardware timestamps, estimates a steady rate from cumulative counts and MP4 time.
+[[nodiscard]] std::optional<std::vector<SampleTiming>> calculate_sample_timing(
+    std::span<const SampleBatch> batches, std::optional<SampleClock> clock = std::nullopt);
 
 } // namespace clst::gpmf
 

@@ -204,6 +204,9 @@ void Modifiers::observe(const RecordView& record) noexcept
     case "MTRX"_fc: modifier = &matrix; break;
     case "ORIN"_fc: modifier = &orientation_in; break;
     case "ORIO"_fc: modifier = &orientation_out; break;
+    case "STMP"_fc: modifier = &timestamp; break;
+    case "TSMP"_fc: modifier = &total_samples; break;
+    case "TIMO"_fc: modifier = &time_offset; break;
     default: return;
     }
     if (!*modifier) {

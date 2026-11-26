@@ -1,5 +1,7 @@
 #include "test.h"
 #include "clst/gpmf.hpp"
+#include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <initializer_list>
@@ -213,6 +215,122 @@ void check_modifiers()
     CLST_ASSERT(!readings_by_record[4]);
 }
 
+void check_timing_modifiers()
+{
+    Bytes timed_stream;
+    append_record(timed_stream, "STMP", 'J', 8, {0, 0x20, 0, 0, 0, 0, 0, 1});
+    append_record(timed_stream, "TSMP", 'L', 4, {0, 0, 1, 0x90});
+    append_record(timed_stream, "TIMO", 'f', 4, {0x3e, 0, 0, 0});
+    append_record(timed_stream, "GYRO", 's', 6, {0, 20, 0, 60, 0, 120});
+    Bytes untimed_stream;
+    append_record(untimed_stream, "ACCL", 's', 6, {0, 20, 0, 60, 0, 120});
+    Bytes device;
+    append_container(device, "STRM", timed_stream);
+    append_container(device, "STRM", untimed_stream);
+    Bytes payload;
+    append_container(payload, "DEVC", device);
+
+    std::size_t checked = 0;
+    const auto result = gpmf::visit_payload(payload, [&](const gpmf::RecordView& record, const gpmf::Modifiers& modifiers) {
+        if (record.key == "GYRO"_fc) {
+            const auto batch = gpmf::sample_batch(record, modifiers, 2.0, 1.0);
+            CLST_ASSERT(batch.timestamp == 9007199254740993ULL);
+            CLST_ASSERT(batch.total_samples == 400 && batch.delay == 0.125);
+            CLST_ASSERT(batch.start == 2.0 && batch.duration == 1.0 && batch.count == 1);
+            ++checked;
+        } else if (record.key == "ACCL"_fc) {
+            const auto batch = gpmf::sample_batch(record, modifiers, 2.0, 1.0);
+            CLST_ASSERT(!batch.timestamp && !batch.total_samples && batch.delay == 0.0);
+            ++checked;
+        }
+    });
+    CLST_ASSERT(result && checked == 2);
+}
+
+void check_close(double actual, double expected)
+{
+    CLST_ASSERT(std::abs(actual - expected) < 1e-10);
+}
+
+void check_timestamped_timing()
+{
+    constexpr std::uint64_t reference = 9007199254740993ULL;
+    const std::array cori{
+        gpmf::SampleBatch{0.0, 1.001, 24, reference},
+        gpmf::SampleBatch{1.001, 1.001, 24, reference + 1000000},
+    };
+    const auto clock = gpmf::estimate_sample_clock(cori, 24000.0 / 1001.0);
+    CLST_ASSERT(clock && clock->timestamp == reference && clock->time == 0.0);
+    check_close(clock->seconds_per_tick, 1.001e-6);
+
+    const std::array gyro{
+        gpmf::SampleBatch{0.0, 1.001, 2, reference - 25000},
+        gpmf::SampleBatch{1.001, 1.001, 2, {}, {}, 0.125},
+        gpmf::SampleBatch{2.002, 1.001, 2, reference + 1975000},
+        gpmf::SampleBatch{3.003, 1.001, 2, 0}, // reset timestamp
+    };
+    const auto timing = gpmf::calculate_sample_timing(gyro, clock);
+    CLST_ASSERT(timing && timing->size() == gyro.size());
+    check_close((*timing)[0].at(0), -0.025025);
+    check_close((*timing)[0].at(1), 0.475475);
+    check_close((*timing)[1].at(0), 0.975975 - 0.125);
+    check_close((*timing)[2].at(0), 1.976975);
+    check_close((*timing)[3].at(0), 2.977975);
+
+    const std::array nanoseconds{
+        gpmf::SampleBatch{0.0, 1.0, 100, reference},
+        gpmf::SampleBatch{1.0, 1.0, 100, reference + 1000000000},
+    };
+    const auto nanosecond_clock = gpmf::estimate_sample_clock(nanoseconds);
+    CLST_ASSERT(nanosecond_clock);
+    check_close(nanosecond_clock->seconds_per_tick, 1e-9);
+    const auto nanosecond_timing = gpmf::calculate_sample_timing(nanoseconds);
+    CLST_ASSERT(nanosecond_timing);
+    check_close((*nanosecond_timing)[0].period, 0.01);
+
+    const std::array missing_first_stamp{
+        gpmf::SampleBatch{0.0, 1.001, 24},
+        gpmf::SampleBatch{1.001, 1.001, 24, reference + 1000000},
+        gpmf::SampleBatch{2.002, 1.001, 24, reference + 2000000},
+    };
+    const auto recovered = gpmf::estimate_sample_clock(missing_first_stamp, 24000.0 / 1001.0);
+    CLST_ASSERT(recovered && recovered->timestamp == reference + 1000000);
+    check_close(recovered->time, 1.001);
+    const auto recovered_timing = gpmf::calculate_sample_timing(missing_first_stamp, recovered);
+    CLST_ASSERT(recovered_timing);
+    check_close((*recovered_timing)[0].start, 0.0);
+}
+
+void check_packet_timing()
+{
+    const std::array uneven{
+        gpmf::SampleBatch{0.0, 1.0, 3},
+        gpmf::SampleBatch{1.0, 1.0, 5},
+        gpmf::SampleBatch{2.0, 1.0, 4},
+    };
+    const auto fit = gpmf::calculate_sample_timing(uneven);
+    CLST_ASSERT(fit && fit->size() == uneven.size());
+    check_close((*fit)[0].period, 1.0 / 4.5);
+    check_close((*fit)[1].start, (*fit)[0].at(3));
+    check_close((*fit)[2].start, (*fit)[1].at(5));
+
+    const std::array missing{
+        gpmf::SampleBatch{0.0, 1.0, 4, {}, 104},
+        gpmf::SampleBatch{2.0, 1.0, 4, {}, 112},
+    };
+    const auto gap = gpmf::calculate_sample_timing(missing);
+    CLST_ASSERT(gap && gap->size() == missing.size());
+    check_close((*gap)[0].start, 0.0);
+    check_close((*gap)[0].period, 0.25);
+    check_close((*gap)[1].start, 2.0);
+
+    const std::array single{gpmf::SampleBatch{1.5, 0.5, 100}};
+    const auto short_clip = gpmf::calculate_sample_timing(single);
+    CLST_ASSERT(short_clip);
+    check_close(short_clip->front().start, 1.5);
+    check_close(short_clip->front().period, 0.005);
+}
+
 } // namespace
 
 int gpmf(int, char*[])
@@ -221,5 +339,8 @@ int gpmf(int, char*[])
     check_malformed_records();
     check_values();
     check_modifiers();
+    check_timing_modifiers();
+    check_timestamped_timing();
+    check_packet_timing();
     return 0;
 }
