@@ -18,7 +18,7 @@ parse_trak(Mp4Stream& file, const Mp4Stream::AtomInfo& trak_atom) noexcept try {
 
     //tkhd
     {
-        file.seek_to_atom_data("tkhd"_fc, trak_atom);
+        file.seek_to_atom_data(ex, "tkhd"_fc, trak_atom);
         uint8_t ver; uint32_t _flag;
         file.read_num(ex, ver);
         file.read_num<Endian::BE, uint32_t, 3>(ex, _flag);
@@ -42,10 +42,10 @@ parse_trak(Mp4Stream& file, const Mp4Stream::AtomInfo& trak_atom) noexcept try {
         file.read_nums(ex, track_info.tkhd_width, track_info.tkhd_height);
     }
 
-    const auto mdia_atom = file.seek_to_atom_data("mdia"_fc, trak_atom);
+    const auto mdia_atom = file.seek_to_atom_data(ex, "mdia"_fc, trak_atom);
     //mdhd
     {
-        file.seek_to_atom_data("mdhd"_fc, mdia_atom);
+        file.seek_to_atom_data(ex, "mdhd"_fc, mdia_atom);
         uint8_t ver; uint32_t _flag;
         file.read_num(ex, ver);
         file.read_num<Endian::BE, uint32_t, 3>(ex, _flag);
@@ -61,20 +61,20 @@ parse_trak(Mp4Stream& file, const Mp4Stream::AtomInfo& trak_atom) noexcept try {
     }
     //hdlr
     {
-        file.seek_to_atom_data("hdlr"_fc, mdia_atom);
+        file.seek_to_atom_data(ex, "hdlr"_fc, mdia_atom);
         uint8_t ver; uint32_t _flag;
         file.read_num(ex, ver);
         file.read_num<Endian::BE, uint32_t, 3>(ex, _flag);
         file.seek(ex, 4, SeekFrom::Current);
         file.read_num(ex, track_info.hdlr_type);
     }
-    const auto minf_atom = file.seek_to_atom_data("minf"_fc, mdia_atom);
+    const auto minf_atom = file.seek_to_atom_data(ex, "minf"_fc, mdia_atom);
     // vmhd/smhd, dinf...
-    const auto stbl_atom = file.seek_to_atom_data("stbl"_fc, minf_atom);
+    const auto stbl_atom = file.seek_to_atom_data(ex, "stbl"_fc, minf_atom);
 
     //stsd
     {
-        file.seek_to_atom_data("stsd"_fc, stbl_atom);
+        file.seek_to_atom_data(ex, "stsd"_fc, stbl_atom);
         file.seek(ex, 4, SeekFrom::Current);
         file.read_num(ex, track_info.sample_desc_count);
         file.seek(ex, 4, SeekFrom::Current);
@@ -85,7 +85,7 @@ parse_trak(Mp4Stream& file, const Mp4Stream::AtomInfo& trak_atom) noexcept try {
     //Existence of required atoms is not checked.
     file.seek(ex, stbl_atom.data_offset());
     while(file.tell(ex) < (OffsetType)stbl_atom.end_offset()) { // int64_t?
-        const auto atom = file.parse_atom();
+        const auto atom = file.parse_atom(ex);
         uint8_t ver; uint32_t _flag; // not used here...
         file.read_num(ex, ver);
         file.read_num<Endian::BE, uint32_t, 3>(ex, _flag);
@@ -148,8 +148,8 @@ get_tracks(Mp4Stream& file) noexcept try {
     file.seek(ex, 0);
     std::vector<TrackInfo> result_tracks;
 
-    const auto moov = file.seek_to_atom_data("moov"_fc, file.get_length(ex));
-    const auto atoms_in_moov = file.get_all_atoms(moov.data_size());
+    const auto moov = file.seek_to_atom_data(ex, "moov"_fc, file.get_length(ex));
+    const auto atoms_in_moov = file.get_all_atoms(ex, moov.data_size());
 
     for (const auto& atom : atoms_in_moov) {
         if (atom.fourcc == "trak"_fc) {

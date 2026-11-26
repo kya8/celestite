@@ -31,7 +31,7 @@ check_input(Mp4Stream& file) noexcept try {
     file.seek(ex, 0);
     bool has_moov = false, has_mdat = false;
     bool err = false;
-    const auto root_atoms = file.get_all_atoms(file.get_length(ex));
+    const auto root_atoms = file.get_all_atoms(ex, file.get_length(ex));
     for (const auto& a : root_atoms) {
         if (a.fourcc == "moov"_fc) {
             if (has_moov) {
@@ -94,7 +94,7 @@ merge_info(MergeInfo& info, Mp4Stream& file, std::size_t file_id, std::size_t cu
     }
 
     for (;;) {
-        const auto atom = file.parse_atom();
+        const auto atom = file.parse_atom(ex);
         if (should_descend(atom.fourcc)) {
             if (atom.fourcc == "trak"_fc && current_track_id>=info.trak_infos.size()) {
                 if (file_id == 0) { // should make room
@@ -339,7 +339,7 @@ write_merged(MergeInfo& info, std::vector<Mp4Stream>& files, BinaryFileStream& o
 
     int64_t total_written = 0;
     for(;;) {
-        const auto atom = ref.parse_atom();
+        const auto atom = ref.parse_atom(ex);
         auto new_size = atom.size; // actual output size of this atom
         if (should_descend(atom.fourcc)) {
             // Copy the header first
@@ -604,7 +604,7 @@ Mp4Merger::run() noexcept try
         auto& file = input_streams[i];
         // Get mdat info
         // should not throw, since we've checked for mdat.
-        const auto mdat = file.seek_to_atom_data("mdat"_fc, file.get_length(ex));
+        const auto mdat = file.seek_to_atom_data(ex, "mdat"_fc, file.get_length(ex));
         info->mdat_position.push_back({mdat.data_offset(), mdat.data_size()});
 
         // Update info list.

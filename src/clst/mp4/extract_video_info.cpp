@@ -20,7 +20,7 @@ seek_atom_recursive(Mp4Stream& file, std::initializer_list<std::uint32_t> fourcc
     try {
         for (auto it = fourcc_list.begin(); it != fourcc_list.end(); ++it) {
             const auto range = it==fourcc_list.begin()? max_range : atom.data_size();
-            atom = file.seek_to_atom_data(*it, range);
+            atom = file.seek_to_atom_data(ex, *it, range);
         }
     } catch (const StreamError&) {
         return {};

@@ -1,4 +1,5 @@
 #include "test.h"
+#include "clst/fourcc.hpp"
 #include "clst/mp4/mp4.hpp"
 #include "clst/streams/BinaryFileStream.hpp"
 #include "clst/streams/FileStreamOperations.hpp"
@@ -103,6 +104,14 @@ static_assert(requires(NativeBinaryFileStream& stream, NativeBinaryFileStream::N
     { stream.resize(0) } noexcept;
     { stream.reserve(0) } noexcept;
     { stream.prefetch(0, 1) } noexcept;
+});
+static_assert(requires(clst::mp4::Mp4Stream& stream, const clst::mp4::Mp4Stream::AtomInfo& atom) {
+    { stream.parse_atom() } noexcept;
+    { stream.seek_to_atom_data(0, 0) } noexcept;
+    { stream.seek_to_atom_data(0, atom) } noexcept;
+    { stream.get_all_atoms(0) } noexcept;
+    { stream.read_atom_data(atom) } noexcept;
+    { stream.verify() } noexcept;
 });
 #ifdef _WIN32
 static_assert(std::is_same_v<decltype(std::declval<NativeBinaryFileStream&>().get_handle()), void*>);
@@ -915,8 +924,38 @@ void check_truncated_mp4(const std::string& filename)
     output.close(ex);
 
     clst::mp4::Mp4Stream stream(filename.c_str());
-    CLST_ASSERT_THROW(stream.parse_atom(), std::system_error);
+    const auto atom = stream.parse_atom();
+    CLST_ASSERT(!atom && atom.error() == std::io_errc::stream);
+    stream.seek(ex, 0);
+    CLST_ASSERT_THROW(stream.parse_atom(ex), std::system_error);
     CLST_ASSERT(!stream.verify());
+}
+
+void check_mp4_atom_errors(const std::string& filename)
+{
+    using clst::mp4::AtomError;
+    using clst::operator""_fc;
+    BinaryFileStream output(ex, filename.c_str(), FileStreamMode::Write);
+    output.write_nums(ex, std::uint32_t{9}, "moov"_fc, static_cast<unsigned char>('x'));
+    output.write_nums(ex, std::uint32_t{1}, "mdat"_fc, std::numeric_limits<std::uint64_t>::max());
+    output.close(ex);
+
+    clst::mp4::Mp4Stream stream(ex, filename.c_str());
+    const auto atom = stream.seek_to_atom_data("moov"_fc, 9);
+    CLST_ASSERT(atom && atom->data_offset() == 8 && atom->end_offset() == 9);
+    const auto data = stream.read_atom_data(*atom);
+    CLST_ASSERT(data && data->size() == 1 && data->front() == 'x');
+    const auto oversized = stream.parse_atom();
+    CLST_ASSERT(!oversized && oversized.error() == make_error_code(AtomError::beyond_eof));
+    stream.seek(ex, 9);
+    CLST_ASSERT_THROW(stream.parse_atom(ex), clst::mp4::error);
+
+    stream.seek(ex, 0);
+    const auto missing = stream.seek_to_atom_data("mdat"_fc, 9);
+    CLST_ASSERT(!missing && missing.error() == make_error_code(AtomError::not_found));
+    stream.seek(ex, 0);
+    const auto prefix = stream.get_all_atoms(25);
+    CLST_ASSERT(prefix && prefix->size() == 1 && prefix->front().fourcc == "moov"_fc);
 }
 
 } // namespace
@@ -947,5 +986,6 @@ int binary_file_stream(int, char*[])
 #endif
 #endif
     check_truncated_mp4(temp.filename("truncated.mp4"));
+    check_mp4_atom_errors(temp.filename("atom-errors.mp4"));
     return 0;
 }

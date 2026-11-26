@@ -281,11 +281,11 @@ bool detect_gopro(mp4::Mp4Stream& file, CameraInfo& info, bool metadata_only, co
     types::VecBytes data;
     try {
         file.seek(ex, 0);
-        const auto moov = file.seek_to_atom_data("moov"_fc, file.get_length(ex));
-        const auto udta = file.seek_to_atom_data("udta"_fc, moov);
-        const auto atom = file.seek_to_atom_data("GPMF"_fc, udta);
+        const auto moov = file.seek_to_atom_data(ex, "moov"_fc, file.get_length(ex));
+        const auto udta = file.seek_to_atom_data(ex, "udta"_fc, moov);
+        const auto atom = file.seek_to_atom_data(ex, "GPMF"_fc, udta);
         if (atom.data_size() != 0) {
-            data = file.read_atom_data(atom);
+            data = file.read_atom_data(ex, atom);
         }
     } catch (const StreamError&) {
         CLST_LOG_DEBUG("Could not read GoPro GPMF box");
