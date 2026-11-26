@@ -69,7 +69,7 @@ void check_nested_and_padded_records()
     append_container(payload, "DEVC", {});
     payload.insert(payload.end(), 5, 0);
 
-    gpmf::Reader reader(std::span(payload).subspan(1));
+    gpmf::Reader reader{std::span{payload}.subspan(1)};
     const auto root = read_record(reader);
     CLST_ASSERT(root.key == "DEVC"_fc && root.is_container());
     CLST_ASSERT(root.sample_size == 4 && root.repeat == device.size() / 4);
