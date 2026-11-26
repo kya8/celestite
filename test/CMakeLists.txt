@@ -4,8 +4,14 @@ list(FILTER test_sources EXCLUDE REGEX "(^|/)_")
 create_test_sourcelist(driver_sources clst_tests_driver.cpp ${test_sources})
 
 add_executable(test_clst ${driver_sources})
-# Exercise the internal GPMF parser in both static and shared builds.
-target_sources(test_clst PRIVATE ${CLST_SRC_DIR}/clst/gpmf.cpp ${CLST_SRC_DIR}/clst/gpmf_timing.cpp)
+# Exercise internal parsers and streams in both static and shared builds.
+target_sources(test_clst PRIVATE
+    ${CLST_SRC_DIR}/clst/gpmf.cpp
+    ${CLST_SRC_DIR}/clst/gpmf_timing.cpp
+    ${CLST_SRC_DIR}/clst/mp4/mp4.cpp
+    ${CLST_SRC_DIR}/clst/streams/BinaryFileStream.cpp
+    ${CLST_SRC_DIR}/clst/streams/NativeBinaryFileStream.cpp
+)
 target_include_directories(test_clst PRIVATE ${CLST_SRC_DIR})
 target_link_libraries(test_clst PRIVATE clst::clst)
 
