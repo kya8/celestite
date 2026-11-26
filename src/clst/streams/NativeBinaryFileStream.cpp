@@ -750,12 +750,16 @@ struct NativeBinaryFileStream::Impl {
         return transfer.result;
     }
 
-    std::error_code close_handle() noexcept
+    NativeHandle detach_handle() noexcept
     {
-        const auto old_handle = std::exchange(handle, closed_handle);
         state = CacheState::Empty;
         cache.reset();
-        return native_close(old_handle);
+        return std::exchange(handle, closed_handle);
+    }
+
+    std::error_code close_handle() noexcept
+    {
+        return native_close(detach_handle());
     }
 
     // Called when destruction or a noexcept move must release ownership even on error.
@@ -906,6 +910,16 @@ void NativeBinaryFileStream::close_ex()
 bool NativeBinaryFileStream::is_open() const noexcept
 {
     return get_handle() != closed_handle;
+}
+
+NativeBinaryFileStream::NativeHandle NativeBinaryFileStream::release()
+{
+    if (!is_open())
+        return closed_handle;
+
+    auto& state = impl();
+    detail::throw_file_error(state.synchronize(), "Release file handle");
+    return state.detach_handle();
 }
 
 NativeBinaryFileStream::NativeHandle NativeBinaryFileStream::get_handle() const noexcept

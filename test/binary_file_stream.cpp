@@ -189,6 +189,39 @@ void check_adoption(const std::string& filename)
 #endif
 }
 
+void check_release(const std::string& filename)
+{
+    NativeBinaryFileStream::NativeHandle handle;
+    {
+        NativeBinaryFileStream stream;
+        CLST_ASSERT(stream.release() == stream.get_handle());
+        stream.open_ex(filename.c_str(), FileStreamMode::WriteExtended);
+        const auto original = stream.get_handle();
+        stream.write_ex("abcdef", 6);
+        CLST_ASSERT(native_length(stream) == 0);
+
+        handle = stream.release();
+        CLST_ASSERT(handle == original && !stream.is_open());
+        CLST_ASSERT(stream.release() == stream.get_handle());
+    }
+    CLST_ASSERT(native_handle_is_open(handle));
+    {
+        NativeBinaryFileStream stream(adopt_handle, handle, FileStreamMode::ReadExtended);
+        CLST_ASSERT(stream.tell_ex() == 6 && stream.get_length_ex() == 6);
+        stream.seek_ex(0);
+        char first = 0;
+        CLST_ASSERT(stream.read_ex(&first, 1) == 1 && first == 'a');
+        CLST_ASSERT(stream.tell_ex() == 1 && native_position(stream) == 6);
+
+        CLST_ASSERT(stream.release() == handle && !stream.is_open());
+    }
+    NativeBinaryFileStream stream(adopt_handle, handle, FileStreamMode::ReadExtended);
+    CLST_ASSERT(stream.tell_ex() == 1);
+    std::array<char, 5> remaining{};
+    CLST_ASSERT(stream.read_ex(remaining.data(), remaining.size()) == remaining.size());
+    CLST_ASSERT(std::string_view(remaining.data(), remaining.size()) == "bcdef");
+}
+
 template<typename Stream>
 void check_modes_and_eof(const std::string& filename)
 {
@@ -647,6 +680,7 @@ private:
 void check_flush_retry(const std::string& filename)
 {
     NativeBinaryFileStream stream(filename.c_str(), FileStreamMode::WriteExtended);
+    const auto handle = stream.get_handle();
     constexpr std::string_view expected = "abcdefghijklmnop";
     stream.write_ex(expected.data(), expected.size());
     {
@@ -656,7 +690,8 @@ void check_flush_retry(const std::string& filename)
         CLST_ASSERT(stream.set_buffer_size(0) == std::errc::file_too_large);
         CLST_ASSERT(stream.get_buffer_size() == 64 * 1024);
         CLST_ASSERT(stream.close() == std::errc::file_too_large);
-        CLST_ASSERT(stream.is_open());
+        CLST_ASSERT_THROW(stream.release(), std::system_error);
+        CLST_ASSERT(stream.is_open() && stream.get_handle() == handle);
         CLST_ASSERT(stream.tell_ex() == static_cast<OffsetType>(expected.size()));
         CLST_ASSERT(stream.get_length_ex() == static_cast<OffsetType>(expected.size()));
     }
@@ -763,6 +798,7 @@ int binary_file_stream(int, char*[])
 {
     const TempDirectory temp;
     check_adoption(temp.filename("adopt.bin"));
+    check_release(temp.filename("release.bin"));
     check_modes_and_eof<BinaryFileStream>(temp.filename("legacy.bin"));
     check_modes_and_eof<NativeBinaryFileStream>(temp.filename("native.bin"));
     check_cache_boundaries(temp.filename("cache.bin"));

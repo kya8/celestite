@@ -55,6 +55,11 @@ public:
     void close_ex();
     [[nodiscard]] bool is_open() const noexcept;
 
+    // Synchronize the buffer, then give the caller ownership of the handle.
+    // An empty stream returns nullptr on Windows or -1 on UNIX. If synchronization
+    // fails, throw std::system_error and retain ownership.
+    [[nodiscard]] NativeHandle release();
+
     // The stream owns this handle. Flush before using it for native I/O.
     [[nodiscard]] NativeHandle get_handle() const noexcept;
 
