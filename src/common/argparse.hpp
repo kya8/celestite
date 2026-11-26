@@ -26,7 +26,7 @@ enum class ParseError {
 
 struct [[nodiscard]] ParseResult {
     ParseError error;
-    // argc on success, the offending option or argument index on error.
+    // argc on ordinary completion, or the argv index of the error or stop flag.
     int index;
 
     constexpr explicit operator bool() const noexcept { return error == ParseError::none; }
@@ -34,7 +34,7 @@ struct [[nodiscard]] ParseResult {
 
 namespace detail {
 
-enum class BindingKind { flag, count, value };
+enum class BindingKind { flag, stop, count, value };
 enum class AliasForm { long_option, short_option, short_alias };
 
 consteval AliasForm alias_form(std::string_view name) noexcept
@@ -45,10 +45,13 @@ consteval AliasForm alias_form(std::string_view name) noexcept
     return name.size() == 2 ? AliasForm::short_option : AliasForm::short_alias;
 }
 
+template<FixedString Alias>
+inline constexpr std::string_view alias_view = Alias.view();
+
 template<AliasForm Form, FixedString Alias>
 constexpr bool matches_alias(auto key) noexcept
 {
-    constexpr auto name = Alias.view();
+    constexpr auto name = alias_view<Alias>;
     if constexpr (alias_form(name) != Form) {
         return false;
     } else if constexpr (Form == AliasForm::short_option) {
@@ -69,9 +72,22 @@ struct Binding {
     static constexpr bool has_alias = ((alias_form(Aliases.view()) == Form) || ...);
 
     template<AliasForm Form>
-    static constexpr bool matches(auto key) noexcept
+    static constexpr auto match(auto key) noexcept
     {
-        return (matches_alias<Form, Aliases>(key) || ...);
+        if constexpr (Kind == BindingKind::stop) {
+            const std::string_view* matched = nullptr;
+            const auto try_alias = [&]<FixedString Alias> {
+                if (!matches_alias<Form, Alias>(key)) {
+                    return false;
+                }
+                matched = &alias_view<Alias>;
+                return true;
+            };
+            (void)(try_alias.template operator()<Aliases>() || ...);
+            return matched;
+        } else {
+            return (matches_alias<Form, Aliases>(key) || ...);
+        }
     }
 };
 
@@ -136,7 +152,7 @@ consteval bool valid_member()
         using Field = std::remove_reference_t<decltype(std::declval<Config&>().*Binding::member)>;
         if constexpr (Binding::member == nullptr || std::is_const_v<Field> || std::is_volatile_v<Field>) {
             return false;
-        } else if constexpr (Binding::kind == BindingKind::flag) {
+        } else if constexpr (Binding::kind == BindingKind::flag || Binding::kind == BindingKind::stop) {
             return std::same_as<Field, bool>;
         } else if constexpr (Binding::kind == BindingKind::count) {
             return Integer<Field> && std::integral<decltype(Binding::limit)> && requires { Field{Binding::limit}; };
@@ -197,6 +213,10 @@ struct Arguments {
 template<auto Member, FixedString... Aliases>
 using Flag = detail::Binding<detail::BindingKind::flag, Member, 0, Aliases...>;
 
+// Set a Boolean member to true and return a successful early exit.
+template<auto Member, FixedString... Aliases>
+using StopFlag = detail::Binding<detail::BindingKind::stop, Member, 0, Aliases...>;
+
 // Increment an integer member whenever it is below Limit.
 template<auto Member, auto Limit, FixedString... Aliases>
 using CountFlag = detail::Binding<detail::BindingKind::count, Member, Limit, Aliases...>;
@@ -224,6 +244,8 @@ using Option = detail::Binding<detail::BindingKind::value, Member, 0, Aliases...
  * precedence over short-option groups. A value option within a group consumes
  * its suffix or the next token. Long values can follow an equals sign or occupy
  * a separate token. A separate value can start with a dash.
+ * A StopFlag ends parsing immediately, including within a short-option group.
+ * With a StopFlag, Result provides is_early_exit() and early_exit_opt().
  *
  * String views and pointers borrow the corresponding argv string. String
  * assignments and positional calls use their usual allocation and exception
@@ -238,9 +260,34 @@ class Parser {
     using BindingKind = detail::BindingKind;
 
     static constexpr bool nothrow_bindings = (detail::nothrow_binding<Config, Bindings>() && ...);
+    static constexpr bool has_stop_flag = ((Bindings::kind == BindingKind::stop) || ...);
+
+    class [[nodiscard]] EarlyExitResult : public ParseResult {
+    public:
+        [[nodiscard]] constexpr bool is_early_exit() const noexcept requires has_stop_flag
+        {
+            return early_exit_ != nullptr;
+        }
+
+        // The matched alias has static storage. Other results yield a default view.
+        [[nodiscard]] constexpr std::string_view early_exit_opt() const noexcept requires has_stop_flag
+        {
+            return early_exit_ ? *early_exit_ : std::string_view{};
+        }
+
+    private:
+        friend class Parser;
+
+        constexpr EarlyExitResult(ParseError error, int index, const std::string_view* early_exit = nullptr) noexcept
+            : ParseResult{error, index}, early_exit_(early_exit) {}
+
+        const std::string_view* early_exit_;
+    };
 
 public:
-    static constexpr ParseResult parse(int argc, const char* const* argv, Config& config) noexcept(nothrow_bindings)
+    using Result = std::conditional_t<has_stop_flag, EarlyExitResult, ParseResult>;
+
+    static constexpr Result parse(int argc, const char* const* argv, Config& config) noexcept(nothrow_bindings)
     {
         return parse(argc, argv, config, [](const char*) noexcept { return false; });
     }
@@ -249,7 +296,7 @@ public:
     requires requires (Positional& handler, const char* const& operand) {
         { handler(operand) } -> std::same_as<bool>;
     }
-    static constexpr ParseResult parse(int argc, const char* const* argv, Config& config, Positional&& on_positional)
+    static constexpr Result parse(int argc, const char* const* argv, Config& config, Positional&& on_positional)
         noexcept(nothrow_bindings && noexcept(on_positional(std::declval<const char* const&>())))
     {
         detail::Arguments args{argc, argv};
@@ -274,7 +321,8 @@ public:
                 }
                 const char* suffix = *end == '=' ? end + 1 : nullptr;
                 const std::string_view name{token, static_cast<std::size_t>(end - token)};
-                if (const auto result = consume<AliasForm::long_option>(name, suffix, args, config); !result) {
+                if (const auto result = consume<AliasForm::long_option>(name, suffix, args, config);
+                    should_return<AliasForm::long_option>(result)) {
                     return result;
                 }
                 continue;
@@ -286,7 +334,7 @@ public:
                     const auto name = detail::text_value<std::string_view>(token);
                     const auto result = consume<AliasForm::short_alias>(name, suffix, args, config);
                     if (result.error != ParseError::unknown_option) {
-                        if (!result) {
+                        if (should_return<AliasForm::short_alias>(result)) {
                             return result;
                         }
                         continue;
@@ -297,7 +345,8 @@ public:
             const char* suffix = token + 1;
             while (suffix && *suffix != '\0') {
                 const char name = *suffix++;
-                if (const auto result = consume<AliasForm::short_option>(name, suffix, args, config); !result) {
+                if (const auto result = consume<AliasForm::short_option>(name, suffix, args, config);
+                    should_return<AliasForm::short_option>(result)) {
                     return result;
                 }
             }
@@ -307,20 +356,40 @@ public:
 
 private:
     template<AliasForm Form>
-    static constexpr ParseResult consume(auto name, const char*& suffix, detail::Arguments& args, Config& config) noexcept(nothrow_bindings)
+    static constexpr bool should_return(const Result& result) noexcept
+    {
+        if constexpr (((Bindings::kind == BindingKind::stop && Bindings::template has_alias<Form>) || ...)) {
+            return !result || result.is_early_exit();
+        } else {
+            return !result;
+        }
+    }
+
+    template<AliasForm Form>
+    static constexpr Result consume(auto name, const char*& suffix, detail::Arguments& args, Config& config) noexcept(nothrow_bindings)
     {
         auto error = ParseError::unknown_option;
+        const std::string_view* early_exit = nullptr;
         const auto try_binding = [&]<class Binding> {
             if constexpr (Binding::template has_alias<Form>) {
-                if (Binding::template matches<Form>(name)) {
+                if (const auto match = Binding::template match<Form>(name)) {
                     error = apply<Form, Binding>(suffix, args, config);
+                    if constexpr (Binding::kind == BindingKind::stop) {
+                        if (error == ParseError::none) {
+                            early_exit = match;
+                        }
+                    }
                     return true;
                 }
             }
             return false;
         };
         (void)(try_binding.template operator()<Bindings>() || ...);
-        return {error, args.index};
+        if constexpr (has_stop_flag) {
+            return {error, args.index, early_exit};
+        } else {
+            return {error, args.index};
+        }
     }
 
     template<AliasForm Form, class Binding>

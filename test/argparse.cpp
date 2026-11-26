@@ -2,6 +2,7 @@
 #include "test.h"
 
 #include <array>
+#include <concepts>
 #include <iterator>
 #include <limits>
 #include <utility>
@@ -27,6 +28,17 @@ using Args = Parser<Config,
     Option<&Config::text, "-d", "--text">,
     Option<&Config::path, "-o", "--output">>;
 
+struct StopConfig {
+    int verbosity = 0;
+    bool help = false;
+    bool version = false;
+};
+
+using StopArgs = Parser<StopConfig,
+    CountFlag<&StopConfig::verbosity, 3, "-v", "--verbose">,
+    StopFlag<&StopConfig::help, "-h", "--help", "-help">,
+    StopFlag<&StopConfig::version, "-V", "--version">>;
+
 struct Strings {
     std::string owned;
     std::string_view borrowed;
@@ -48,6 +60,12 @@ struct ByteCounter {
 template<class Cfg, class... Bindings>
 concept ValidSchema = requires { typename Parser<Cfg, Bindings...>; };
 
+template<class Result>
+concept HasEarlyExitStatus = requires (Result& result) { result.is_early_exit(); };
+
+template<class Result>
+concept HasEarlyExitOption = requires (Result& result) { result.early_exit_opt(); };
+
 static_assert(!ValidSchema<Config, Flag<&Config::force>>);
 static_assert(!ValidSchema<Config, Flag<&Config::force, "force">>);
 static_assert(!ValidSchema<Config, Flag<&Config::force, "-">>);
@@ -65,11 +83,23 @@ static_assert(!ValidSchema<ByteCounter, CountFlag<&ByteCounter::count, -1, "-v">
 static_assert(!ValidSchema<ByteCounter, Option<&ByteCounter::read_only, "-r">>);
 static_assert(!ValidSchema<ByteCounter, Option<&ByteCounter::floating, "-f">>);
 static_assert(!ValidSchema<ByteCounter, Option<&ByteCounter::function, "-f">>);
+static_assert(!ValidSchema<StopConfig, StopFlag<&StopConfig::verbosity, "-v">>);
+
+static_assert(std::same_as<Args::Result, ParseResult>);
+static_assert(std::same_as<decltype(Args::parse(0, nullptr, std::declval<Config&>())), Args::Result>);
+static_assert(std::same_as<decltype(StopArgs::parse(0, nullptr, std::declval<StopConfig&>())), StopArgs::Result>);
+static_assert(!HasEarlyExitStatus<Args::Result>);
+static_assert(!HasEarlyExitOption<Args::Result>);
+static_assert(HasEarlyExitStatus<StopArgs::Result>);
+static_assert(HasEarlyExitOption<StopArgs::Result>);
 
 static_assert(noexcept(Args::parse(0, nullptr, std::declval<Config&>())));
 static_assert(noexcept(Args::parse(0, nullptr, std::declval<Config&>(), [](const char*) noexcept { return true; })));
 static_assert(!noexcept(Args::parse(0, nullptr, std::declval<Config&>(), [](const char*) { return true; })));
 static_assert(!noexcept(StringArgs::parse(0, nullptr, std::declval<Strings&>())));
+static_assert(noexcept(StopArgs::parse(0, nullptr, std::declval<StopConfig&>())));
+static_assert(noexcept(std::declval<const StopArgs::Result&>().is_early_exit()));
+static_assert(noexcept(std::declval<const StopArgs::Result&>().early_exit_opt()));
 
 constexpr bool parse_at_compile_time()
 {
@@ -82,6 +112,69 @@ constexpr bool parse_at_compile_time()
 }
 
 static_assert(parse_at_compile_time());
+
+constexpr std::string_view early_exit_alias_at_compile_time()
+{
+    StopConfig config;
+    char group[] = "-vhV";
+    const char* const argv[] = {"tool", group, "--unknown"};
+    const auto result = StopArgs::parse(3, argv, config);
+    if (!result || !result.is_early_exit() || result.index != 1 || config.verbosity != 1 || !config.help || config.version) {
+        return {};
+    }
+    return result.early_exit_opt();
+}
+
+// The reported alias must survive the writable argv buffer.
+static_assert(early_exit_alias_at_compile_time() == "-h");
+
+void test_early_exit()
+{
+    StopConfig config;
+    const char* const long_option[] = {"tool", "-v", "--help", "--version", "--unknown", "file"};
+    bool saw_operand = false;
+    const auto stopped = StopArgs::parse(6, long_option, config, [&](const char*) noexcept {
+        saw_operand = true;
+        return true;
+    });
+    CLST_ASSERT(stopped);
+    CLST_ASSERT(stopped.is_early_exit());
+    CLST_ASSERT_EQ(stopped.index, 2);
+    CLST_ASSERT_EQ(stopped.early_exit_opt(), "--help");
+    CLST_ASSERT_EQ(config.verbosity, 1);
+    CLST_ASSERT(config.help);
+    CLST_ASSERT(!config.version);
+    CLST_ASSERT(!saw_operand);
+
+    config = {};
+    const char* const exact_alias[] = {"tool", "-help"};
+    const auto exact = StopArgs::parse(2, exact_alias, config);
+    CLST_ASSERT(exact && exact.is_early_exit());
+    CLST_ASSERT_EQ(exact.early_exit_opt(), "-help");
+    CLST_ASSERT(config.help);
+
+    config = {};
+    const char* const complete[] = {"tool", "-v"};
+    const auto normal = StopArgs::parse(2, complete, config);
+    CLST_ASSERT(normal && !normal.is_early_exit());
+    CLST_ASSERT_EQ(normal.index, 2);
+    CLST_ASSERT_EQ(normal.early_exit_opt().data(), nullptr);
+
+    const char* const unexpected_value[] = {"tool", "--help=value"};
+    const auto invalid = StopArgs::parse(2, unexpected_value, config);
+    CLST_ASSERT(!invalid && !invalid.is_early_exit());
+    CLST_ASSERT_EQ(invalid.error, ParseError::unexpected_value);
+    CLST_ASSERT_EQ(invalid.index, 1);
+    CLST_ASSERT_EQ(invalid.early_exit_opt().data(), nullptr);
+    CLST_ASSERT(!config.help);
+
+    const char* const earlier_error[] = {"tool", "--unknown", "--help"};
+    const auto failed = StopArgs::parse(3, earlier_error, config);
+    CLST_ASSERT(!failed && !failed.is_early_exit());
+    CLST_ASSERT_EQ(failed.error, ParseError::unknown_option);
+    CLST_ASSERT_EQ(failed.index, 1);
+    CLST_ASSERT(!config.help);
+}
 
 void test_option_values()
 {
@@ -200,6 +293,7 @@ void test_errors()
 
 int argparse(int, char*[])
 {
+    test_early_exit();
     test_option_values();
     test_text_bindings();
     test_positionals();
